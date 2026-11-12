@@ -1,0 +1,16 @@
+[package]
+name = "psalm-audio-core"
+version = "0.1.0"
+edition = "2024"
+description = "Real-time multitrack playback, pitch/tempo stretch, click synthesis, and MIDI control engine for Psalm Stage"
+
+[dependencies]
+cpal = "0.15"
+midir = "0.10"
+rtrb = "0.3"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+signalsmith-stretch = "0.1"
+symphonia = { version = "0.5", features = ["wav", "ogg", "mp3", "flac"] }
+thiserror = "2.0"
+log = "0.4"
