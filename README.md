@@ -17,15 +17,33 @@
 
 ## Table of Contents
 
-1. [Overview & Philosophy](#overview--philosophy)
-2. [Key Capabilities](#key-capabilities)
-3. [Workspace Architecture](#workspace-architecture)
-4. [Hardware Setup & Stage Wiring](#hardware-setup--stage-wiring)
-5. [Keyboard & MIDI Stage Controller Cheatsheet](#keyboard--midi-stage-controller-cheatsheet)
-6. [OpenSpec Feature Pipeline & Specifications](#openspec-feature-pipeline--specifications)
-7. [Documentation Directory](#documentation-directory)
-8. [Local Development & Testing](#local-development--testing)
-9. [Troubleshooting & Stage Safety](#troubleshooting--stage-safety)
+1. [📥 Quick Download & Installation (For Worship Teams)](#-quick-download--installation-for-worship-teams)
+2. [Overview & Philosophy](#overview--philosophy)
+3. [Key Capabilities](#key-capabilities)
+4. [Workspace Architecture](#workspace-architecture)
+5. [Hardware Setup & Stage Wiring](#hardware-setup--stage-wiring)
+6. [Keyboard & MIDI Stage Controller Cheatsheet](#keyboard--midi-stage-controller-cheatsheet)
+7. [OpenSpec Feature Pipeline & Specifications](#openspec-feature-pipeline--specifications)
+8. [Documentation Directory](#documentation-directory)
+9. [Developer Guide & Local Compilation](#developer-guide--local-compilation)
+10. [Troubleshooting & Stage Safety](#troubleshooting--stage-safety)
+
+---
+
+## 📥 Quick Download & Installation (For Worship Teams)
+
+> **No developer setup or terminal required!** Psalm Stage is distributed as standard, self-contained desktop installers for church laptops.
+
+Visit the [**GitHub Releases**](https://github.com/dayo-a/psalm-stage/releases) page to download the latest release:
+
+| Platform | Installer Download | Installation Steps |
+| :--- | :--- | :--- |
+| **macOS (Apple Silicon)** | `Psalm-Stage_0.1.0_aarch64.dmg` | Open the `.dmg` file and drag **Psalm Stage** into your **Applications** folder. |
+| **macOS (Intel Core)** | `Psalm-Stage_0.1.0_x64.dmg` | Open the `.dmg` file and drag **Psalm Stage** into your **Applications** folder. |
+| **Windows 10 / 11** | `Psalm-Stage_0.1.0_x64-setup.exe` | Double-click the `.exe` installer. A desktop shortcut and Start menu entry are created automatically. |
+| **Linux** | `Psalm-Stage_0.1.0_amd64.AppImage` | Right-click the `.AppImage`, enable "Allow executing file as program", and double-click to launch. |
+
+For detailed packaging architecture, automated CI/CD release builds, and enterprise code-signing details, see [**docs/DEPLOYMENT_AND_RELEASES.md**](docs/DEPLOYMENT_AND_RELEASES.md).
 
 ---
 
@@ -164,6 +182,7 @@ Psalm Stage uses an OpenSpec specification pipeline to govern feature design, DS
 * [**SPEC-008: High-Contrast Stage UI**](openspec/specs/SPEC-008-STAGE-UI-SPARTAN.md) — Angular 22 zoneless architecture, Spartan-ng components.
 * [**SPEC-009: Outbound MIDI Beat Clock & Automation**](openspec/specs/SPEC-009-MIDI-CLOCK-AUTOMATION.md) — 24 PPQN MIDI clock out, ProPresenter automation.
 * [**SPEC-010: Offline Caching & Non-Destructive Overrides**](openspec/specs/SPEC-010-CLOUD-SYNC-OFFLINE.md) — Local-first offline sidecar files.
+* [**SPEC-011: Automated Packaging & Distribution Pipeline**](openspec/specs/SPEC-011-PACKAGING-AND-DISTRIBUTION.md) — Turnkey `.dmg`, `.exe`, `.deb` installers, and CI/CD release workflow.
 
 ---
 
@@ -171,6 +190,7 @@ Psalm Stage uses an OpenSpec specification pipeline to govern feature design, DS
 
 Explore the deep architectural and operational guides in `docs/`:
 
+* [docs/DEPLOYMENT_AND_RELEASES.md](docs/DEPLOYMENT_AND_RELEASES.md) — Turnkey installer distribution, GitHub Actions CI/CD, signing, and auto-updates.
 * [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — Threading model, lock-free ringbuffers, real-time invariants.
 * [docs/AUDIO_ENGINE_DESIGN.md](docs/AUDIO_ENGINE_DESIGN.md) — DSP signal processing graph, latency matching proof, sub-sample math.
 * [docs/HARDWARE_WIRING_GUIDE.md](docs/HARDWARE_WIRING_GUIDE.md) — Audio interface setup, passive DI boxes, digital console routing.
@@ -180,14 +200,16 @@ Explore the deep architectural and operational guides in `docs/`:
 
 ---
 
-## Local Development & Testing
+## Developer Guide & Local Compilation
+
+> Note: This section is intended for developers contributing to the codebase. Worship teams and musicians should download the ready-to-run installers above.
 
 ### Prerequisites
 * **Node.js**: v22+ (`node -v`)
 * **Rust**: 1.80+ (`rustc -vV`)
 * **macOS / Linux / Windows** build dependencies for Tauri v2
 
-### Running the App
+### Running in Development Mode
 ```bash
 # 1. Install dependencies
 npm install
@@ -199,9 +221,15 @@ npm run tauri dev
 > [!NOTE] Port 4200 Auto-Recycling
 > The `package.json` includes an automatic `prestart` hook that clears lingering processes on port 4200 before Angular starts, preventing connection collisions.
 
+### Building Desktop Installers Locally
+```bash
+# Compiles optimized release binary and bundles native .dmg / .exe installer
+npm run package
+```
+
 ### Running Test Suites
 ```bash
-# Run all 23 Rust audio core unit tests
+# Run all 25 Rust audio core unit tests
 cargo test --workspace
 
 # Run all 7 Angular frontend unit tests

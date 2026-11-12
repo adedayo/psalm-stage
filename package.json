@@ -7,6 +7,8 @@
     "start": "ng serve",
     "kill-port": "lsof -ti:4200 | xargs kill -9 2>/dev/null || true",
     "build": "ng build",
+    "package": "ng build && tauri build",
+    "package:debug": "ng build && tauri build --debug",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "tauri": "tauri"

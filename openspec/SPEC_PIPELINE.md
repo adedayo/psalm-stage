@@ -37,6 +37,7 @@ Each specification defines requirements, exact data contracts, audio engine inva
 | [**SPEC-008**](./specs/SPEC-008-STAGE-UI-SPARTAN.md) | High-Contrast Stage UI, Tailwind v4 & Spartan-ng | Frontend UI | P1 (High) | **Implemented (Core)** | Angular Vitest Passing |
 | [**SPEC-009**](./specs/SPEC-009-MIDI-CLOCK-AUTOMATION.md) | Outbound MIDI Beat Clock & ProPresenter / Rig Sync | External Sync | P2 (Medium) | **Planned** | Clock Jitter Spec Defined |
 | [**SPEC-010**](./specs/SPEC-010-CLOUD-SYNC-OFFLINE.md) | Local-First Offline Caching & Non-Destructive Overrides | Cloud / Collab | P3 (Low) | **Backlog** | Model Spec Defined |
+| [**SPEC-011**](./specs/SPEC-011-PACKAGING-AND-DISTRIBUTION.md) | Turnkey Installers (.dmg / .exe / .deb) & CI/CD Release Pipeline | Distribution | P0 (Critical) | **Implemented** | GitHub Actions & Bundle Specs Verified |
 
 ---
 
