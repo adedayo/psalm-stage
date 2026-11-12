@@ -51,6 +51,13 @@ export class App {
     return Array.from({ length: count }, (_, idx) => idx + 1);
   });
 
+  protected readonly shouldShowUpdateBanner = computed(() => {
+    const update = this.stage.availableUpdate();
+    const dismissed = this.stage.updateDismissed();
+    const isPlaying = this.snap().is_playing;
+    return update !== null && !dismissed && !isPlaying;
+  });
+
   @HostListener('window:keydown', ['$event'])
   protected onGlobalKeydown(ev: KeyboardEvent): void {
     const tag = (ev.target as HTMLElement | null)?.tagName;
@@ -194,6 +201,21 @@ export class App {
 
   protected formatMidiEvent(raw: RawMidiEvent | null): string {
     return this.stage.formatMidiEvent(raw);
+  }
+
+  protected onDownloadUpdate(): void {
+    const update = this.stage.availableUpdate();
+    if (update) {
+      void this.stage.openInBrowser(update.url);
+    }
+  }
+
+  protected onDismissUpdate(): void {
+    this.stage.dismissUpdate();
+  }
+
+  protected onCheckUpdatesManually(): void {
+    void this.stage.checkForUpdates();
   }
 
   protected formatTarget(target: MidiTarget): string {

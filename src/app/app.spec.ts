@@ -103,4 +103,17 @@ describe('App', () => {
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'l', bubbles: true }));
     expect(service.snapshot().loop_enabled).toBe(true);
   });
+
+  it('should correctly compare semver versions for update auto-detection', () => {
+    const fixture = TestBed.createComponent(App);
+    const service = TestBed.inject(PsalmStageService);
+
+    expect(service.isNewerVersion('0.1.0', 'v0.2.0')).toBe(true);
+    expect(service.isNewerVersion('0.1.0', '0.1.1')).toBe(true);
+    expect(service.isNewerVersion('0.1.0', '1.0.0')).toBe(true);
+
+    expect(service.isNewerVersion('0.2.0', 'v0.1.0')).toBe(false);
+    expect(service.isNewerVersion('0.1.0', '0.1.0')).toBe(false);
+    expect(service.isNewerVersion('0.1.1', 'v0.1.0')).toBe(false);
+  });
 });

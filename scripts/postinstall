@@ -1,0 +1,11 @@
+#!/bin/bash
+# Post-install script for Psalm Stage .pkg installer
+# Automatically clears the macOS quarantine extended attribute so Gatekeeper allows seamless launch
+
+APP_PATH="/Applications/Psalm Stage.app"
+
+if [ -d "$APP_PATH" ]; then
+    xattr -cr "$APP_PATH" 2>/dev/null || true
+fi
+
+exit 0

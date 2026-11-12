@@ -102,6 +102,32 @@ fn set_midi_learn_mode(enabled: bool, state: State<'_, AppState>) {
     state.midi.set_learn_mode(enabled);
 }
 
+#[tauri::command]
+fn open_in_browser(url: String) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(&url)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("cmd")
+            .args(["/c", "start", "", &url])
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(all(not(target_os = "macos"), not(target_os = "windows")))]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(&url)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -185,6 +211,7 @@ pub fn run() {
             save_midi_binding,
             delete_midi_binding,
             set_midi_learn_mode,
+            open_in_browser,
         ])
         .run(tauri::generate_context!())
         .expect("error while building tauri application");

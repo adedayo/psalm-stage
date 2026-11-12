@@ -10,6 +10,7 @@ import {
   type MidiTarget,
   type MidiTriggerBehavior,
   type RawMidiEvent,
+  type AppUpdateInfo,
 } from '../models/engine.models';
 
 const DEMO_FALLBACK_SNAPSHOT: EngineSnapshot = {
@@ -68,6 +69,10 @@ export class PsalmStageService implements OnDestroy {
     behavior: MidiTriggerBehavior;
   } | null>(null);
   readonly statusMessage = signal<string | null>(null);
+  readonly APP_VERSION = '0.1.0';
+  readonly availableUpdate = signal<AppUpdateInfo | null>(null);
+  readonly isCheckingUpdate = signal<boolean>(false);
+  readonly updateDismissed = signal<boolean>(false);
 
   private unlistenFns: UnlistenFn[] = [];
 
@@ -75,6 +80,84 @@ export class PsalmStageService implements OnDestroy {
     if (this.isTauriRuntime()) {
       void this.initTauriBridge();
     }
+    // Check for new releases in the background (non-blocking)
+    setTimeout(() => {
+      void this.checkForUpdates();
+    }, 2500);
+  }
+
+  isNewerVersion(current: string, target: string): boolean {
+    const parse = (v: string) =>
+      v
+        .replace(/^v/i, '')
+        .split('.')
+        .map((part) => parseInt(part, 10) || 0);
+
+    const [curMaj = 0, curMin = 0, curPatch = 0] = parse(current);
+    const [tarMaj = 0, tarMin = 0, tarPatch = 0] = parse(target);
+
+    if (tarMaj > curMaj) return true;
+    if (tarMaj < curMaj) return false;
+    if (tarMin > curMin) return true;
+    if (tarMin < curMin) return false;
+    return tarPatch > curPatch;
+  }
+
+  async checkForUpdates(): Promise<AppUpdateInfo | null> {
+    this.isCheckingUpdate.set(true);
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 4000);
+      const res = await fetch('https://api.github.com/repos/dayo-a/psalm-stage/releases/latest', {
+        signal: controller.signal,
+        headers: { Accept: 'application/vnd.github.v3+json' },
+      });
+      clearTimeout(timeout);
+      if (!res.ok) return null;
+      const data = (await res.json()) as {
+        tag_name?: string;
+        name?: string;
+        html_url?: string;
+        body?: string;
+        published_at?: string;
+      };
+      if (data.tag_name && this.isNewerVersion(this.APP_VERSION, data.tag_name)) {
+        const update: AppUpdateInfo = {
+          currentVersion: this.APP_VERSION,
+          latestVersion: data.tag_name.replace(/^v/i, ''),
+          name: data.name ?? data.tag_name,
+          url: data.html_url ?? 'https://github.com/dayo-a/psalm-stage/releases',
+          notes: (data.body ?? '').slice(0, 300),
+          publishedAt: data.published_at ?? new Date().toISOString(),
+        };
+        this.availableUpdate.set(update);
+        return update;
+      }
+      return null;
+    } catch {
+      // Gracefully ignore network errors on stage
+      return null;
+    } finally {
+      this.isCheckingUpdate.set(false);
+    }
+  }
+
+  async openInBrowser(url: string): Promise<void> {
+    if (this.isTauriRuntime()) {
+      try {
+        await invoke('open_in_browser', { url });
+        return;
+      } catch {
+        // Fallback to window.open
+      }
+    }
+    if (typeof window !== 'undefined') {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  }
+
+  dismissUpdate(): void {
+    this.updateDismissed.set(true);
   }
 
   private async initTauriBridge(): Promise<void> {

@@ -125,3 +125,12 @@ export type EngineCommand =
   | { type: 'SetStemMuted'; payload: { name: string; muted: boolean } }
   | { type: 'SetRoutingMode'; payload: OutputRoutingMode }
   | { type: 'SelectOutputDevice'; payload: string };
+
+export interface AppUpdateInfo {
+  currentVersion: string;
+  latestVersion: string;
+  name: string;
+  url: string;
+  notes: string;
+  publishedAt: string;
+}
