@@ -60,7 +60,7 @@ export interface MidiPortInfo {
   name: string;
 }
 
-export type MidiMessageKind = 'Note' | 'ControlChange' | 'ProgramChange';
+export type MidiMessageKind = 'Note' | 'ControlChange' | 'ProgramChange' | 'PitchBend';
 export type MidiTriggerBehavior = 'Momentary' | 'Toggle' | 'Continuous';
 
 export type MidiTarget =

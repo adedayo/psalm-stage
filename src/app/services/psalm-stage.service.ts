@@ -105,10 +105,36 @@ export class PsalmStageService implements OnDestroy {
         }
       });
 
-      this.unlistenFns.push(unlistenSnap, unlistenMidi);
+      const unlistenPorts = await listen<MidiPortInfo[]>('midi:ports', (event) => {
+        this.midiPorts.set(event.payload);
+      });
+
+      const unlistenConnected = await listen<string | null>('midi:connected-port', (event) => {
+        this.connectedMidiPort.set(event.payload);
+      });
+
+      this.unlistenFns.push(unlistenSnap, unlistenMidi, unlistenPorts, unlistenConnected);
     } catch (err) {
       this.statusMessage.set(`Audio bridge error: ${String(err)}`);
     }
+  }
+
+  formatMidiEvent(raw: RawMidiEvent | null): string {
+    if (!raw) return '';
+    const ch = `Ch${raw.channel}`;
+    if (raw.kind === 'Note') {
+      const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+      const oct = Math.floor(raw.number / 12) - 1;
+      const noteName = `${noteNames[raw.number % 12]}${oct}`;
+      return `${ch} • Note ${noteName} (${raw.number}) • Vel ${raw.value}`;
+    }
+    if (raw.kind === 'ControlChange') {
+      return `${ch} • CC ${raw.number} • Val ${raw.value}`;
+    }
+    if (raw.kind === 'PitchBend') {
+      return `${ch} • Pitch Bend • ${raw.value}`;
+    }
+    return `${ch} • Prog Change ${raw.number}`;
   }
 
   async sendCommand(command: EngineCommand): Promise<void> {
@@ -125,18 +151,40 @@ export class PsalmStageService implements OnDestroy {
 
   async refreshHardware(): Promise<void> {
     if (!this.isTauriRuntime()) return;
-    const [devices, ports] = await Promise.all([
-      invoke<AudioDeviceInfo[]>('list_audio_devices'),
-      invoke<MidiPortInfo[]>('list_midi_ports'),
-    ]);
-    this.audioDevices.set(devices);
-    this.midiPorts.set(ports);
+    try {
+      const [devices, ports, connected] = await Promise.all([
+        invoke<AudioDeviceInfo[]>('list_audio_devices'),
+        invoke<MidiPortInfo[]>('list_midi_ports'),
+        invoke<string | null>('connected_midi_port'),
+      ]);
+      this.audioDevices.set(devices);
+      this.midiPorts.set(ports);
+      this.connectedMidiPort.set(connected);
+    } catch (err) {
+      this.statusMessage.set(`Hardware scan error: ${String(err)}`);
+    }
   }
 
   async connectMidiPort(portIndex: number): Promise<void> {
     if (!this.isTauriRuntime()) return;
-    const name = await invoke<string>('connect_midi_port', { portIndex });
-    this.connectedMidiPort.set(name);
+    try {
+      const name = await invoke<string>('connect_midi_port', { portIndex });
+      this.connectedMidiPort.set(name);
+      this.statusMessage.set(`MIDI Connected: ${name}`);
+    } catch (err) {
+      this.statusMessage.set(`MIDI Connection Error: ${String(err)}`);
+    }
+  }
+
+  async connectAllMidi(): Promise<void> {
+    if (!this.isTauriRuntime()) return;
+    try {
+      const name = await invoke<string>('connect_all_midi');
+      this.connectedMidiPort.set(name);
+      this.statusMessage.set(`MIDI Connected: ${name}`);
+    } catch (err) {
+      this.statusMessage.set(`MIDI Omni Error: ${String(err)}`);
+    }
   }
 
   async disconnectMidiPort(): Promise<void> {

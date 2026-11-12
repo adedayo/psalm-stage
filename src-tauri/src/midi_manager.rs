@@ -11,8 +11,9 @@ use psalm_audio_core::{AudioCoreError, Result};
 use tauri::{AppHandle, Emitter};
 
 pub struct MidiManager {
-    connection: Mutex<Option<MidiInputConnection<()>>>,
+    connections: Mutex<Vec<MidiInputConnection<()>>>,
     connected_port: RwLock<Option<String>>,
+    is_omni: RwLock<bool>,
     bindings: Arc<RwLock<Vec<MidiBinding>>>,
     learn_mode: Arc<RwLock<bool>>,
     config_path: PathBuf,
@@ -24,24 +25,128 @@ impl MidiManager {
         let bindings = load_bindings_from_disk(&config_path);
 
         Self {
-            connection: Mutex::new(None),
+            connections: Mutex::new(Vec::new()),
             connected_port: RwLock::new(None),
+            is_omni: RwLock::new(true),
             bindings: Arc::new(RwLock::new(bindings)),
             learn_mode: Arc::new(RwLock::new(false)),
             config_path,
         }
     }
 
+    /// Automatically connects to all detected hardware MIDI inputs (Omni mode).
+    /// This ensures any plugged-in USB MIDI keyboard or pedalboard is immediately active.
+    pub fn connect_all(&self, engine: Arc<AudioEngine>, app: AppHandle) -> Result<String> {
+        let mut conns_guard = self.connections.lock().unwrap();
+        conns_guard.clear();
+
+        let probe = MidiInput::new("psalm-stage-probe")
+            .map_err(|e| AudioCoreError::Midi(e.to_string()))?;
+        let ports = probe.ports();
+
+        if ports.is_empty() {
+            if let Ok(mut p) = self.connected_port.write() {
+                *p = None;
+            }
+            let _ = app.emit("midi:connected-port", &None::<String>);
+            return Ok("No MIDI inputs detected".to_string());
+        }
+
+        let mut connected_names = Vec::new();
+
+        for i in 0..ports.len() {
+            let mut midi_in = match MidiInput::new(&format!("psalm-stage-in-{i}")) {
+                Ok(m) => m,
+                Err(_) => continue,
+            };
+            midi_in.ignore(Ignore::None);
+
+            let current_ports = midi_in.ports();
+            let Some(port) = current_ports.get(i) else {
+                continue;
+            };
+            let port_name = midi_in
+                .port_name(port)
+                .unwrap_or_else(|_| format!("MIDI Port {i}"));
+
+            let bindings = Arc::clone(&self.bindings);
+            let learn_mode = Arc::clone(&self.learn_mode);
+            let dev_name_cb = port_name.clone();
+            let app_cb = app.clone();
+            let engine_cb = Arc::clone(&engine);
+
+            match midi_in.connect(
+                port,
+                "psalm-stage-listener",
+                move |_timestamp, bytes, _| {
+                    let Some(event) = parse_raw_midi(&dev_name_cb, bytes) else {
+                        return;
+                    };
+
+                    let _ = app_cb.emit("midi:raw", &event);
+
+                    let is_learning = learn_mode.read().map(|g| *g).unwrap_or(false);
+                    if is_learning {
+                        return;
+                    }
+
+                    dispatch_midi_event(&event, &bindings, &engine_cb);
+                },
+                (),
+            ) {
+                Ok(conn) => {
+                    conns_guard.push(conn);
+                    connected_names.push(port_name);
+                }
+                Err(e) => {
+                    log::warn!("Could not connect to MIDI port {}: {}", i, e);
+                }
+            }
+        }
+
+        if connected_names.is_empty() {
+            if let Ok(mut p) = self.connected_port.write() {
+                *p = None;
+            }
+            let _ = app.emit("midi:connected-port", &None::<String>);
+            return Ok("Failed to connect to MIDI inputs".to_string());
+        }
+
+        let summary = if connected_names.len() == 1 {
+            connected_names[0].clone()
+        } else {
+            // Find primary keyboard or controller name if available
+            let primary = connected_names
+                .iter()
+                .find(|n| !n.to_lowercase().contains("daw") && !n.to_lowercase().contains("editor"))
+                .unwrap_or(&connected_names[0]);
+            format!("Omni ({} devices: {})", connected_names.len(), primary)
+        };
+
+        if let Ok(mut p) = self.connected_port.write() {
+            *p = Some(summary.clone());
+        }
+        if let Ok(mut o) = self.is_omni.write() {
+            *o = true;
+        }
+
+        let _ = app.emit("midi:connected-port", &Some(summary.clone()));
+        Ok(summary)
+    }
+
+    /// Connects to a specific port index, or all ports if `port_index == usize::MAX`.
     pub fn connect_port(
         &self,
         port_index: usize,
         engine: Arc<AudioEngine>,
         app: AppHandle,
     ) -> Result<String> {
-        // Drop any previous connection before opening the new port.
-        if let Ok(mut guard) = self.connection.lock() {
-            *guard = None;
+        if port_index == usize::MAX {
+            return self.connect_all(engine, app);
         }
+
+        let mut conns_guard = self.connections.lock().unwrap();
+        conns_guard.clear();
 
         let mut midi_in = MidiInput::new("psalm-stage-in")
             .map_err(|e| AudioCoreError::Midi(e.to_string()))?;
@@ -58,6 +163,8 @@ impl MidiManager {
         let bindings = Arc::clone(&self.bindings);
         let learn_mode = Arc::clone(&self.learn_mode);
         let dev_name_cb = port_name.clone();
+        let app_cb = app.clone();
+        let engine_cb = Arc::clone(&engine);
 
         let conn = midi_in
             .connect(
@@ -68,36 +175,51 @@ impl MidiManager {
                         return;
                     };
 
-                    let _ = app.emit("midi:raw", &event);
+                    let _ = app_cb.emit("midi:raw", &event);
 
                     let is_learning = learn_mode.read().map(|g| *g).unwrap_or(false);
                     if is_learning {
                         return;
                     }
 
-                    dispatch_midi_event(&event, &bindings, &engine);
+                    dispatch_midi_event(&event, &bindings, &engine_cb);
                 },
                 (),
             )
             .map_err(|e| AudioCoreError::Midi(e.to_string()))?;
 
-        if let Ok(mut guard) = self.connection.lock() {
-            *guard = Some(conn);
-        }
+        conns_guard.push(conn);
+
         if let Ok(mut p) = self.connected_port.write() {
             *p = Some(port_name.clone());
         }
+        if let Ok(mut o) = self.is_omni.write() {
+            *o = false;
+        }
 
+        let _ = app.emit("midi:connected-port", &Some(port_name.clone()));
         Ok(port_name)
     }
 
-    pub fn disconnect(&self) {
-        if let Ok(mut guard) = self.connection.lock() {
-            *guard = None;
+    pub fn disconnect(&self, app: Option<&AppHandle>) {
+        if let Ok(mut guard) = self.connections.lock() {
+            guard.clear();
         }
         if let Ok(mut p) = self.connected_port.write() {
             *p = None;
         }
+        if let Ok(mut o) = self.is_omni.write() {
+            *o = false;
+        }
+        if let Some(a) = app {
+            let _ = a.emit("midi:connected-port", &None::<String>);
+        }
+    }
+
+    pub fn is_omni_or_empty(&self) -> bool {
+        let is_omni = self.is_omni.read().map(|g| *g).unwrap_or(true);
+        let is_empty = self.connected_port.read().map(|g| g.is_none()).unwrap_or(true);
+        is_omni || is_empty
     }
 
     pub fn connected_port_name(&self) -> Option<String> {

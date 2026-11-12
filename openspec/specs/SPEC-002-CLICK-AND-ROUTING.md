@@ -114,3 +114,4 @@ When the engine switches back to native bypass ($0\text{ semitones}$, native BPM
 The click module includes automated tests in `crates/psalm-audio-core/src/click.rs`:
 - **`test_click_synth_trigger_and_decay`**: Verifies that triggered clicks reach peak amplitude within 1 frame and decay exponentially below $-60\text{ dBFS}$ within $15\text{ ms}$.
 - **`test_click_delay_buffer_exact_delay`**: Verifies that an input impulse placed at index $k$ emerges at exactly index $k + \Delta$ with 0 phase distortion.
+

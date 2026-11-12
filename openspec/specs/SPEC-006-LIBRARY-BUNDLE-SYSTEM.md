@@ -94,3 +94,4 @@ where $s = n \cdot \frac{f_{\text{in}}}{f_{\text{out}}}$ and $\alpha = s - \lflo
 Tests in `crates/psalm-audio-core/src/loader.rs`:
 - **`test_resample_stereo_linear`**: Verifies exact sample count and amplitude preservation when upsampling ($44.1\text{ kHz} \to 48\text{ kHz}$) and downsampling ($48\text{ kHz} \to 44.1\text{ kHz}$).
 - **`test_generate_demo_song`**: Confirms that when no library is mounted, the engine dynamically generates a complete 32-bar synthetic song bundle in memory for instant zero-config testing.
+

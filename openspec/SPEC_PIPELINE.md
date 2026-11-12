@@ -103,3 +103,4 @@ To guarantee enterprise-grade stability on stage, all features must meet these r
    Angular components must maintain high framerate ($60\text{ fps}$) rendering with zoneless change detection (`signal()`), decoupling high-frequency audio telemetry from the main DOM renderer.
 4. **CI Matrix Testing**:
    Continuous integration runs `cargo test --workspace`, `npx ng test --watch=false`, and `npm run build` across macOS, Linux, and Windows runners.
+

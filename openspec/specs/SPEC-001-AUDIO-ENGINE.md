@@ -107,3 +107,4 @@ To ensure zero regressions, tests in `crates/psalm-audio-core/src/engine.rs` mus
 - **`test_sync_bypass_playback`**: Asserts that in native mode, the stem output and click output register simultaneous downbeat peaks at the exact same buffer index.
 - **`test_sync_between_music_and_click_with_tempo_change`**: Asserts that when stretched to 90 BPM or 60 BPM, the delay-compensated click aligns with the vocoder output to within $\pm 2$ frames.
 - **`test_stretcher_latency`**: Asserts that `SignalsmithStretch::total_latency_frames()` returns precisely the expected algorithmic delay for $44.1\text{ kHz}$, $48\text{ kHz}$, and $96\text{ kHz}$.
+

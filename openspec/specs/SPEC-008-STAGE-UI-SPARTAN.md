@@ -69,3 +69,4 @@ Angular unit tests in `src/app/app.spec.ts`:
 - **`should create the app`**: Verifies injection of `PsalmStageService` and signal graph initialization.
 - **`should render title`**: Verifies root DOM presence and high-contrast stage view structure.
 - **`should handle keyboard shortcuts`**: Verifies that pressing `Space`, `L`, and number keys triggers the appropriate IPC commands.
+

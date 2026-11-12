@@ -95,3 +95,4 @@ $$\text{Beat} = \left\lfloor B_{\text{total}} \bmod N_{\text{beats\_per\_bar}} \
 Tests in `crates/psalm-audio-core/src/manifest.rs` verify:
 - **`bar_beat_math_round_trips`**: Confirms that converting from bar to seconds and back to bar/beat is exact to within floating-point epsilon ($10^{-6}\text{ s}$).
 - Boundary conditions testing fractional bar values at 60, 72, 120, and 144 BPM across $4/4$ and $6/8$ meters.
+

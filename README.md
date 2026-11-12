@@ -48,10 +48,14 @@
 * **Intelligent Pitch-Preserving Stems**: Stems marked `"pitched": false` (drums, percussion, clicks, verbal guide cues) remain unshifted when transposing song keys, preventing snare distortion or unnatural vocal artifacts.
 * **Quantized Section Navigation**: Jump to any section (Intro, Verse, Chorus, Bridge, Outro) quantized to the **Next Bar** downbeat or **End of Section**.
 * **Seamless Infinite Looping**: Toggle infinite loop (`L` or MIDI footswitch) on any active section with equal-power crossfade boundaries to extend ministry or prayer times indefinitely.
-* **Focusrite 2-Output Split L/R & Multi-Bus**:
-  * **Split L/R Mode**: Left = FOH Music Stems, Right = IEM Click + Guide Cues.
-  * **Multi-Out Mode**: Separate physical USB/Dante outputs for Stereo Tracks, Click, Cues, Bass, Drums, and Synths.
-* **One-Click MIDI Learn**: Map any footswitch, pad, or fader (Morningstar, Line 6 Helix, Hotone, Korg) to any UI action with machine-local profile storage (`midi-profile.json`).
+* **Universal 2-Output Split L/R & Multi-Bus Matrix**:
+  * **Split L/R Mode**: Left = FOH Music Stems, Right = IEM Click + Guide Cues. Works with any standard 2-channel USB audio interface (Focusrite Scarlett, Behringer U-Phoria, PreSonus AudioBox, MOTU M2/M4, Universal Audio Volt, Zoom, SSL, etc.).
+  * **Multi-Out Mode**: Separate physical USB/Thunderbolt/Dante outputs for Stereo Tracks, Click, Cues, Bass, Drums, and Synths (Focusrite 18i20, Behringer X32/M32, MOTU Ultralite, Dante Virtual Soundcard).
+* **Universal MIDI Controller & Keyboard Support with Hotplug Auto-Connect**:
+  * **Automatic Connection**: Any class-compliant USB or 5-pin DIN MIDI keyboard (M-Audio, Arturia, Akai, Novation, Korg, Roland, Yamaha, Nektar), stage footswitch (Morningstar, Line 6 Helix, Hotone, Behringer), or fader bank connects automatically on app startup.
+  * **Omni Input Mode**: Listens to all connected keyboards, floor pedals, and fader controllers simultaneously.
+  * **Background Hotplug Detection**: Plug in or replug your MIDI keyboard while the software is running; it is detected and connected within seconds without restarting.
+  * **One-Click MIDI Learn**: Map any key, drum pad, fader, or footswitch to transport, loop, section jump, tempo, key, or volume faders. Mappings persist locally in `~/.psalm-stage/midi-profile.json`.
 * **High-Contrast Stage UI**: Spartan-ng (`vega`) unstyled primitives styled with Tailwind CSS v4 in high-visibility dark mode for dimly lit auditoriums.
 
 ---
@@ -101,19 +105,21 @@ psalm-stage/
 
 ## Hardware Setup & Stage Wiring
 
-### Focusrite 2-Output Split L/R Mode (Scarlett Solo / 2i2)
+### Universal 2-Channel "Split L/R" Stage Interface Setup
+
+Works with any standard 2-output USB audio interface (Focusrite Scarlett Solo/2i2, Behringer U-Phoria, PreSonus AudioBox, MOTU M2/M4, Universal Audio Volt, Zoom, SSL):
 
 ```text
-[ Laptop running Psalm Stage ]
+[ Stage Laptop running Psalm Stage ]
              │ (USB-C)
              ▼
-[ Focusrite Audio Interface ]
+[ Standard 2-Output Audio Interface ]
              ├── Output 1 (Left TRS)  ──► [ Passive DI Box 1 ] ──► Snake Ch 1 ──► FOH PA + Band IEMs
              └── Output 2 (Right TRS) ──► [ Passive DI Box 2 ] ──► Snake Ch 2 ──► Band IEMs ONLY (MUTE ON FOH!)
 ```
 
 > [!CAUTION] Stage Safety Checklist
-> 1. Turn **Direct Monitor OFF** on the audio interface.
+> 1. Turn **Direct Monitor OFF** on your audio interface.
 > 2. Ensure macOS **System Settings → Accessibility → Audio → "Play stereo audio as mono"** is **OFF**.
 > 3. Verify on the stage mixing console that the Click/Cue channel is unassigned from the Main FOH Stereo bus!
 
@@ -130,12 +136,14 @@ Detailed wiring diagrams and multi-channel stage configurations are documented i
 | **`L`** | Toggle Loop | Arms active section to loop infinitely when reaching end bar |
 | **`1` – `9`** | Queue Section #1–#9 | Quantized jump to Section 1 through 9 |
 
-### Hardware MIDI Control
-1. Connect your USB MIDI pedalboard or keyboard (Morningstar MC6, Line 6 Helix, Hotone Ampero, etc.).
-2. Select your device under **MIDI Controller** and click **Connect**.
-3. Click **MIDI Assign** in the top navigation bar.
-4. Click any on-screen button, section tile, or fader knob badge, then tap a physical footswitch or knob.
-5. Toggle **MIDI Assign** off to lock your bindings. All mappings persist locally in `~/.psalm-stage/midi-profile.json`.
+### Hardware MIDI Controllers & Keyboards
+1. **Zero-Config Auto-Connect**: Plug in your USB MIDI keyboard (e.g. M-Audio Oxygen, Arturia KeyLab, Novation Launchkey) or stage pedalboard (Morningstar MC6, Line 6 Helix, Hotone Ampero). Psalm Stage **auto-detects and connects** immediately in **Omni Mode** (listening to all connected inputs simultaneously).
+2. **Live Visual Activity Feedback**: The green indicator pulses on every keypress, fader movement, or footswitch tap, displaying the note name (e.g. `Note C4 (60)`), velocity, and channel.
+3. **One-Click MIDI Learn**:
+   - Click **MIDI Assign** in the top navigation bar (yellow learn badges appear).
+   - Click any on-screen button, section tile, or fader `Map Knob` badge.
+   - Tap a physical key, drum pad, footswitch, or turn a knob to bind it.
+   - Toggle **MIDI Assign** off to lock your bindings. All mappings persist locally in `~/.psalm-stage/midi-profile.json`.
 
 Read the complete guide in [docs/MIDI_MAPPING_GUIDE.md](docs/MIDI_MAPPING_GUIDE.md).
 

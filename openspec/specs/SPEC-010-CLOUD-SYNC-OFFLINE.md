@@ -61,3 +61,4 @@ The library architecture must guarantee:
 
 - **`test_sidecar_override_application`**: Confirm that loading a song with an active sidecar applies fader gains and key shifts while leaving the base `manifest.json` intact.
 - **`test_offline_manifest_integrity`**: Validate checksum hashes on loaded stems to detect corrupted downloads or incomplete file copies before live playback starts.
+

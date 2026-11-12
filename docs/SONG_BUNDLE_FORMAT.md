@@ -144,3 +144,4 @@ $$1 \le S_i.\text{start\_bar} < S_i.\text{end\_bar}$$
 $$S_i.\text{end\_bar} \le S_{i+1}.\text{start\_bar}$$
 
 Sections must be strictly non-overlapping and contiguous for standard linear arrangements, though gaps are permitted if an un-stemmed free-flow section exists.
+

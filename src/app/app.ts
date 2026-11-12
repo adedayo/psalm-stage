@@ -18,6 +18,7 @@ import {
   type MidiTriggerBehavior,
   type OutputRoutingMode,
   type QuantizeMode,
+  type RawMidiEvent,
 } from './models/engine.models';
 import { PsalmStageService } from './services/psalm-stage.service';
 
@@ -43,7 +44,7 @@ export class App {
   protected readonly snap = this.stage.snapshot;
   protected readonly liveLock = signal(false);
   protected readonly customFolderPath = signal('');
-  protected readonly selectedMidiPortIndex = signal<number>(0);
+  protected readonly selectedMidiPortIndex = signal<number>(-1);
 
   protected readonly beatDots = computed(() => {
     const count = Math.max(1, this.snap().beats_per_bar);
@@ -189,6 +190,10 @@ export class App {
 
   protected connectSelectedMidi(): void {
     void this.stage.connectMidiPort(Number(this.selectedMidiPortIndex()));
+  }
+
+  protected formatMidiEvent(raw: RawMidiEvent | null): string {
+    return this.stage.formatMidiEvent(raw);
   }
 
   protected formatTarget(target: MidiTarget): string {

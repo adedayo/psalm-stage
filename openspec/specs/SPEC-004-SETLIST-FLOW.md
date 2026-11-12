@@ -109,3 +109,4 @@ flowchart TD
 - **`test_setlist_manifest_validation`**: Verify that setlist items with invalid `song_id` or out-of-range BPM/transposition are rejected with descriptive errors.
 - **`test_transition_mode_serialization`**: Ensure backwards compatibility across versions when deserializing `SetlistManifest` JSON.
 - **`test_crossfade_tail_rendering`**: Verify that stems from Song A smoothly decay to zero while Song B begins without audio clipping.
+

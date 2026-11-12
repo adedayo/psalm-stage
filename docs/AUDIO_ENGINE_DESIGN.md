@@ -127,3 +127,4 @@ Double precision float provides 53 bits of mantissa, ensuring sub-nanosecond acc
 When a musician triggers an instant section jump or an infinite section loop:
 - Seeking the playback read head instantaneously creates a discontinuous step function in the PCM waveform, which results in a high-frequency acoustic "pop" or "click".
 - To prevent this, Psalm Stage initiates a $5\text{ ms}$ equal-power crossfade buffer. The outgoing audio is scaled by $\cos\left(\frac{\pi t}{2 T}\right)$ while the incoming audio is scaled by $\sin\left(\frac{\pi t}{2 T}\right)$, guaranteeing a seamless, click-free transition.
+

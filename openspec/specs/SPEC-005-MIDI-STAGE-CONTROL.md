@@ -109,3 +109,4 @@ Tests in `crates/psalm-audio-core/src/midi.rs` verify:
 - **`test_parse_raw_midi_control_change`**: Accurately extracts channel, controller number, and value.
 - **`test_parse_raw_midi_program_change`**: Validates 2-byte Program Change decoding.
 - **`test_parse_raw_midi_invalid`**: Ensures corrupt or truncated byte streams are safely dropped without panicking.
+

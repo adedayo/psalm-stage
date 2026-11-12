@@ -241,15 +241,15 @@
       </div>
     </section>
 
-    <!-- Right Panel: Focusrite Output Routing, Stem Mixer & MIDI Hardware -->
+    <!-- Right Panel: Audio Output Routing, Stem Mixer & MIDI Hardware -->
     <aside class="lg:col-span-4 flex flex-col gap-4">
       <!-- Audio Routing Card -->
       <div hlmCard class="bg-zinc-900 border-zinc-800">
         <div hlmCardHeader class="flex flex-row items-center justify-between">
           <div>
-            <h2 hlmCardTitle class="text-sm">Focusrite / Audio Output</h2>
+            <h2 hlmCardTitle class="text-sm">Audio Output Interface</h2>
             <p hlmCardDescription class="text-xs text-zinc-400">
-              {{ snap().device_sample_rate }} Hz • {{ snap().device_channels }} ch
+              {{ snap().device_name }} • {{ snap().device_sample_rate }} Hz • {{ snap().device_channels }} ch
             </p>
           </div>
           <button hlmBtn variant="ghost" size="sm" type="button" (click)="stage.refreshHardware()">
@@ -259,7 +259,10 @@
 
         <div hlmCardContent class="space-y-3">
           <div>
-            <label class="block text-[11px] uppercase tracking-wider text-zinc-400 mb-1">Output Device</label>
+            <div class="flex items-center justify-between mb-1">
+              <label class="block text-[11px] uppercase tracking-wider text-zinc-400">Output Device</label>
+              <span class="text-[10px] text-zinc-500">Universal USB / CoreAudio / Dante</span>
+            </div>
             <select
               class="w-full rounded-md border border-zinc-800 bg-zinc-950 px-2.5 py-2 text-xs text-zinc-100"
               [disabled]="liveLock()"
@@ -288,8 +291,9 @@
                   ? 'border-amber-500/60 bg-amber-500/10 text-amber-200'
                   : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-zinc-200'"
               >
-                <div class="font-medium">Split L/R (2-Out Focusrite)</div>
-                <div class="text-[11px] opacity-80">Out 1 (L): Soundtrack • Out 2 (R): Click + Cues</div>
+                <div class="font-medium">Split L/R (2-Channel Stage Interface)</div>
+                <div class="text-[11px] opacity-80">Out 1 (L): Musical Stems • Out 2 (R): Click + Cues (IEM)</div>
+                <div class="text-[10px] text-zinc-500 mt-0.5">Focusrite, Behringer, PreSonus, MOTU, UA, etc.</div>
               </button>
 
               <button
@@ -301,8 +305,9 @@
                   ? 'border-amber-500/60 bg-amber-500/10 text-amber-200'
                   : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-zinc-200'"
               >
-                <div class="font-medium">Multi-Out Stereo (4+ Outs)</div>
+                <div class="font-medium">Multi-Out Stereo (4+ Channels)</div>
                 <div class="text-[11px] opacity-80">Out 1–2: Stereo Music • Out 3–4: Click + Cues</div>
+                <div class="text-[10px] text-zinc-500 mt-0.5">Focusrite 18i20, Behringer X32/M32, MOTU, Dante</div>
               </button>
             </div>
           </div>
@@ -432,30 +437,48 @@
 
       <!-- MIDI Hardware & Mappings Card -->
       <div hlmCard class="bg-zinc-900 border-zinc-800">
-        <div hlmCardHeader class="flex flex-row items-center justify-between">
+        <div hlmCardHeader class="flex flex-row items-center justify-between pb-2">
           <div>
-            <h2 hlmCardTitle class="text-sm">MIDI Controller</h2>
-            <p hlmCardDescription class="text-xs text-zinc-400">
-              {{ stage.connectedMidiPort() ?? 'Not connected' }}
+            <div class="flex items-center gap-2">
+              <h2 hlmCardTitle class="text-sm">MIDI Controller & Keyboard</h2>
+              @if (stage.connectedMidiPort()) {
+                <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-medium text-emerald-400 border border-emerald-500/30">
+                  <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  Active
+                </span>
+              } @else {
+                <span class="inline-flex items-center gap-1 rounded-full bg-zinc-800 px-2 py-0.5 text-[10px] text-zinc-400">
+                  Not connected
+                </span>
+              }
+            </div>
+            <p hlmCardDescription class="text-xs text-zinc-400 truncate max-w-[280px]">
+              {{ stage.connectedMidiPort() ?? 'M-Audio, Arturia, Novation, Morningstar, Line 6, etc.' }}
             </p>
           </div>
-          @if (stage.lastRawMidi(); as raw) {
-            <span hlmBadge variant="outline" class="font-mono text-[10px] border-emerald-500/40 text-emerald-300">
-              Ch{{ raw.channel }} {{ raw.kind }} {{ raw.number }} ({{ raw.value }})
-            </span>
-          }
+          <button hlmBtn variant="ghost" size="sm" type="button" (click)="stage.refreshHardware()">
+            Scan
+          </button>
         </div>
 
         <div hlmCardContent class="space-y-3">
+          @if (stage.lastRawMidi(); as raw) {
+            <div class="rounded-md bg-emerald-950/40 border border-emerald-500/30 px-3 py-1.5 flex items-center justify-between text-xs text-emerald-300 font-mono shadow-sm">
+              <div class="flex items-center gap-2 truncate">
+                <span class="h-2 w-2 rounded-full bg-emerald-400 animate-ping"></span>
+                <span>{{ formatMidiEvent(raw) }}</span>
+              </div>
+              <span class="text-[10px] text-emerald-400/70 truncate max-w-[120px] ml-2">{{ raw.device_name }}</span>
+            </div>
+          }
+
           <div class="flex gap-2">
             <select
               class="flex-1 rounded-md border border-zinc-800 bg-zinc-950 px-2.5 py-1.5 text-xs text-zinc-100"
               [ngModel]="selectedMidiPortIndex()"
               (ngModelChange)="selectedMidiPortIndex.set($event)"
             >
-              @if (stage.midiPorts().length === 0) {
-                <option [value]="0">No MIDI inputs detected</option>
-              }
+              <option [value]="-1">🌟 All Connected MIDI Inputs (Omni Mode)</option>
               @for (port of stage.midiPorts(); track port.index) {
                 <option [value]="port.index">{{ port.name }}</option>
               }
@@ -464,11 +487,21 @@
               hlmBtn
               size="sm"
               type="button"
-              [disabled]="stage.midiPorts().length === 0"
               (click)="connectSelectedMidi()"
             >
               Connect
             </button>
+            @if (stage.connectedMidiPort()) {
+              <button
+                hlmBtn
+                variant="outline"
+                size="sm"
+                type="button"
+                (click)="stage.disconnectMidiPort()"
+              >
+                Disconnect
+              </button>
+            }
           </div>
 
           @if (stage.midiBindings().length > 0) {

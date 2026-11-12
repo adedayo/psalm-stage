@@ -98,3 +98,4 @@ Hardware MIDI input is managed by `midir` running in `src-tauri/src/midi_manager
 2. Incoming raw byte packets are parsed into normalized `RawMidiEvent` structures (Channel, Kind, Number, Value).
 3. The MIDI dispatcher checks the active `MidiProfile`. If an event matches a bound control, it translates it directly into an `EngineCommand` and enqueues it to the audio thread.
 4. If **MIDI Learn Mode** is active, the raw event is routed to the UI so the musician can link it to the selected on-screen parameter.
+

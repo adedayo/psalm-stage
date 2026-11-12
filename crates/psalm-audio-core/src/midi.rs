@@ -14,6 +14,7 @@ pub enum MidiMessageKind {
     Note,
     ControlChange,
     ProgramChange,
+    PitchBend,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -124,6 +125,13 @@ pub fn parse_raw_midi(device_name: &str, bytes: &[u8]) -> Option<RawMidiEvent> {
             number: bytes[1],
             value: 127,
         }),
+        0xE0 if bytes.len() >= 3 => Some(RawMidiEvent {
+            device_name: device_name.to_string(),
+            channel,
+            kind: MidiMessageKind::PitchBend,
+            number: 0,
+            value: bytes[2], // MSB value 0..127 (64 is center)
+        }),
         _ => None,
     }
 }
@@ -131,6 +139,14 @@ pub fn parse_raw_midi(device_name: &str, bytes: &[u8]) -> Option<RawMidiEvent> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_parse_raw_midi_pitch_bend() {
+        let ev = parse_raw_midi("Keyboard", &[0xE0, 0x00, 64]).expect("expected PitchBend");
+        assert_eq!(ev.channel, 1);
+        assert_eq!(ev.kind, MidiMessageKind::PitchBend);
+        assert_eq!(ev.value, 64);
+    }
 
     #[test]
     fn test_parse_raw_midi_note_on() {
@@ -166,5 +182,11 @@ mod tests {
     fn test_parse_raw_midi_invalid() {
         assert!(parse_raw_midi("Device", &[]).is_none());
         assert!(parse_raw_midi("Device", &[0xF8]).is_none()); // Clock tick
+    }
+
+    #[test]
+    fn test_probe_midi_ports() {
+        let ports = list_input_ports().expect("list_input_ports");
+        println!("=== DETECTED MIDI PORTS: {:?}", ports);
     }
 }

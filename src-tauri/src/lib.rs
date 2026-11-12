@@ -28,19 +28,34 @@ fn list_midi_ports() -> Result<Vec<MidiPortInfo>, String> {
 
 #[tauri::command]
 fn connect_midi_port(
-    port_index: usize,
+    port_index: i32,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<String, String> {
+    if port_index < 0 {
+        state
+            .midi
+            .connect_all(Arc::clone(&state.engine), app)
+            .map_err(|e| e.to_string())
+    } else {
+        state
+            .midi
+            .connect_port(port_index as usize, Arc::clone(&state.engine), app)
+            .map_err(|e| e.to_string())
+    }
+}
+
+#[tauri::command]
+fn connect_all_midi(state: State<'_, AppState>, app: AppHandle) -> Result<String, String> {
     state
         .midi
-        .connect_port(port_index, Arc::clone(&state.engine), app)
+        .connect_all(Arc::clone(&state.engine), app)
         .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn disconnect_midi_port(state: State<'_, AppState>) {
-    state.midi.disconnect();
+fn disconnect_midi_port(state: State<'_, AppState>, app: AppHandle) {
+    state.midi.disconnect(Some(&app));
 }
 
 #[tauri::command]
@@ -109,6 +124,9 @@ pub fn run() {
             );
             let midi = Arc::new(MidiManager::new(config_dir));
 
+            // Automatically connect to all detected MIDI inputs on startup (Omni mode)
+            let _ = midi.connect_all(Arc::clone(&engine), app.handle().clone());
+
             // Push ~30fps live engine snapshots (Bar, Beat, Armed/Active section) to Angular.
             let engine_for_ui = Arc::clone(&engine);
             let app_handle = app.handle().clone();
@@ -121,6 +139,36 @@ pub fn run() {
                 })
                 .expect("failed to spawn UI emitter thread");
 
+            // Background thread to continuously detect hotplugged / unplugged MIDI hardware
+            let midi_hotplug = Arc::clone(&midi);
+            let engine_hotplug = Arc::clone(&engine);
+            let app_hotplug = app.handle().clone();
+            thread::Builder::new()
+                .name("psalm-midi-hotplug".into())
+                .spawn(move || {
+                    let mut prev_ports: Vec<String> = list_input_ports()
+                        .map(|list| list.into_iter().map(|p| p.name).collect())
+                        .unwrap_or_default();
+                    loop {
+                        thread::sleep(Duration::from_millis(1500));
+                        if let Ok(current_ports) = list_input_ports() {
+                            let current_names: Vec<String> =
+                                current_ports.iter().map(|p| p.name.clone()).collect();
+                            if current_names != prev_ports {
+                                prev_ports = current_names;
+                                let _ = app_hotplug.emit("midi:ports", &current_ports);
+                                if midi_hotplug.is_omni_or_empty() {
+                                    let _ = midi_hotplug.connect_all(
+                                        Arc::clone(&engine_hotplug),
+                                        app_hotplug.clone(),
+                                    );
+                                }
+                            }
+                        }
+                    }
+                })
+                .expect("failed to spawn MIDI hotplug thread");
+
             app.manage(AppState { engine, midi });
             Ok(())
         })
@@ -128,6 +176,7 @@ pub fn run() {
             list_audio_devices,
             list_midi_ports,
             connect_midi_port,
+            connect_all_midi,
             disconnect_midi_port,
             connected_midi_port,
             get_snapshot,

@@ -4,19 +4,19 @@ This guide covers physical cabling, audio interface selection, stage direct boxe
 
 ---
 
-## 1. Setup A: The 2-Channel "Split L/R" Setup (Most Popular)
+## 1. Setup A: The 2-Channel "Split L/R" Setup (Universal Standard)
 
-The vast majority of church worship teams utilize an affordable 2-channel USB audio interface (e.g., Focusrite Scarlett Solo, Scarlett 2i2, PreSonus AudioBox, or Behringer U-Phoria).
+The vast majority of church worship teams utilize an affordable 2-channel USB audio interface (e.g., Focusrite Scarlett Solo / 2i2, Behringer U-Phoria UMC202HD / UMC204HD, PreSonus AudioBox USB 96, MOTU M2 / M4, Universal Audio Volt, SSL 2, Zoom UAC-2).
 
-In this configuration, stereo separation is traded for full isolation between what the audience hears and what the band hears.
+In this configuration, stereo separation is traded for complete electrical isolation between what the auditorium audience hears (Front of House) and what the band hears (In-Ear Monitors).
 
 ### 1.1 Physical Cabling Diagram
 
 ```text
-[ Stage Laptop ]
+[ Stage Laptop running Psalm Stage ]
        │ (USB-C)
        ▼
-[ Focusrite Scarlett 2i2 / Solo ]
+[ Standard 2-Output Audio Interface (Focusrite / Behringer / PreSonus / MOTU) ]
        ├── Output 1 (Left 1/4" TRS)  ──► [ Passive DI Box Channel 1 ] ──► XLR ──► Snake Ch 1 (Tracks - FOH & IEMs)
        └── Output 2 (Right 1/4" TRS) ──► [ Passive DI Box Channel 2 ] ──► XLR ──► Snake Ch 2 (Click/Cues - IEMs ONLY!)
 ```
@@ -29,7 +29,7 @@ In this configuration, stereo separation is traded for full isolation between wh
 | **Channel 2** | Click & Guide Cues | **UNASSIGNED / MUTED!** | Assigned to IEM mixes only | High-Pass at $100\text{ Hz}$, gentle compressor |
 
 > [!CAUTION] Critical Verification Checklist
-> 1. **Direct Monitor OFF**: On your Focusrite interface, verify that the **Direct Monitor** hardware button/switch is set to **OFF**. If left ON, the click track will leak directly into your laptop monitor outputs.
+> 1. **Direct Monitor OFF**: On your audio interface (Focusrite, Behringer, PreSonus, etc.), verify that the **Direct Monitor** hardware button/switch is set to **OFF**. If left ON, the click track will leak directly into your monitor outputs.
 > 2. **Disable macOS Mono Audio**: On macOS, navigate to **System Settings $\to$ Accessibility $\to$ Audio** and verify that **"Play stereo audio as mono"** is **DISABLED**. If enabled, macOS sums the Left and Right channels before sending them to the interface, leaking the click directly into the House PA!
 > 3. **FOH Unassign**: Before unmuting the mixer, push up Channel 2 with Channel 1 down, and verify complete silence in the auditorium main PA speakers.
 
@@ -77,3 +77,4 @@ Laptops connected to stage wall power (AC chargers) frequently generate $60\text
 - **Use Passive DI Boxes with Transformers**: Always use passive direct boxes equipped with isolation transformers (e.g., Radial ProDI, Radial ProD2, Whirlwind Director, or Behringer Ultra-DI DI20).
 - **Ground Lift Switch**: If you hear a buzz or hum in the monitors, toggle the `GND LIFT` switch on the DI box to isolate laptop ground from stage console ground.
 - **Always Keep Laptop Plugged In**: Never run a live church service on laptop battery power alone. Operating systems aggressively throttle CPU clock speeds on battery, causing buffer underruns and audio dropouts.
+

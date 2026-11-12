@@ -66,3 +66,4 @@ Within `manifest.json`, an optional `midi_cues` array specifies automated outbou
 - **`test_midi_clock_interval_stability`**: Assert that simulated clock ticks do not drift by more than $0.2\text{ ms}$ over 1,000 iterations.
 - **`test_midi_start_stop_sequence`**: Confirm proper framing with `0xFA` on play and `0xFC` on stop.
 - **`test_section_midi_cue_dispatch`**: Verify that seeking or jumping sections dispatches the appropriate patch change for the target section.
+

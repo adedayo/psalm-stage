@@ -84,3 +84,4 @@ Before any pull request is merged into `main`:
 2. `cargo clippy --workspace -- -D warnings` must produce zero warnings.
 3. `npx ng test --watch=false` must pass with 0 failures.
 4. `npm run build` must generate valid production bundles.
+

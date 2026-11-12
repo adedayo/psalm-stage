@@ -10,10 +10,20 @@ Psalm Stage supports all class-compliant USB and 5-pin DIN MIDI hardware nativel
 
 | Hardware Type | Popular Stage Models | Primary Use Case |
 | :--- | :--- | :--- |
+| **MIDI Keyboards & Synths** | M-Audio Oxygen / Keystation, Arturia KeyLab / Minilab, Novation Launchkey, Native Instruments Komplete Kontrol, Roland, Yamaha, Nektar | Keys player playing notes, triggering pads, moving faders, pitch/mod wheels, transport buttons |
 | **Dedicated Footswitches** | Morningstar MC3 / MC6 / MC8, Hotone Ampero Control, Behringer FCB1010 | Worship leader floor foot control for Play, Stop, Loop, Section jumps |
 | **Guitar Multi-Effects** | Line 6 Helix / HX Stomp, Neural DSP Quad Cortex, Fractal FM3 | Multi-duty: Guitar tone switching + sending USB MIDI commands to Psalm Stage |
 | **Desktop Fader Banks** | Korg nanoKONTROL 2, Akai MIDImix, Novation Launch Control XL | Sound engineer or drummer mixing stem levels, click volume, and master gain |
-| **MIDI Keyboards** | Arturia KeyLab, Novation Launchkey, Native Instruments Komplete Kontrol | Keyboardist triggering section pads, cues, and transport |
+
+---
+
+## 2. Zero-Config Auto-Connect & Omni Mode
+
+Psalm Stage features **Universal Omni Input**:
+* **Plug and Play**: When Psalm Stage launches, it automatically scans all available CoreMIDI / ALSA / WinMM ports and connects to them in **Omni Mode**.
+* **Multi-Port Keyboard Support**: Keyboards with multiple virtual ports (such as the M-Audio Oxygen 49 MKV, which exposes Keyboard, DAW, and Editor ports) are unified, ensuring all musical keys, velocity pads, and faders transmit seamlessly.
+* **Background Hotplug Monitoring**: If you plug in your USB keyboard or pedalboard *after* the app is already open, a background scanner detects the device within 1.5 seconds and connects automatically without requiring an app restart.
+* **Live Visual Feedback**: Whenever any key is played or footswitch tapped, the active MIDI monitor flashes green and displays the decoded note name (e.g. `Note C4 (60)`), velocity, and channel.
 
 ---
 
@@ -81,3 +91,4 @@ All MIDI bindings are saved in a machine-local profile file:
 ~/.psalm-stage/midi-profile.json
 ```
 Because the MIDI mappings are stored on the local machine rather than inside church song folders, multiple musicians can connect their own personal pedalboards without modifying the church's shared song library or disturbing other leaders' settings.
+

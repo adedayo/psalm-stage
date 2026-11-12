@@ -64,3 +64,4 @@ When transitioning between keys:
 - **`test_pad_equal_power_crossfade`**: Measure RMS level at $t = 0.5 T$ and confirm energy constancy within $\pm 0.5\text{ dB}$.
 - **`test_pad_root_frequency_table`**: Ensure all 12 chromatic root frequencies ($C$ through $B$) match equal temperament $A4 = 440\text{ Hz}$.
 - **`test_pad_mute_decay`**: Asserts that triggering Pad Mute engages a $500\text{ ms}$ exponential fade-out rather than an instantaneous click.
+
