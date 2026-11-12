@@ -1,0 +1,6 @@
+[workspace]
+members = [
+  "crates/psalm-audio-core",
+  "src-tauri",
+]
+resolver = "2"

@@ -67,3 +67,44 @@ pub fn find_output_device(preferred_name: Option<&str>) -> Result<cpal::Device> 
     host.default_output_device()
         .ok_or_else(|| AudioCoreError::Device("No default audio output device found".into()))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_default_routing_mode() {
+        assert_eq!(OutputRoutingMode::default(), OutputRoutingMode::SplitLeftRight);
+    }
+
+    #[test]
+    fn test_routing_mode_serde() {
+        let modes = [
+            OutputRoutingMode::SplitLeftRight,
+            OutputRoutingMode::SplitClickLeftMusicRight,
+            OutputRoutingMode::MultiOutStereo,
+        ];
+        for mode in modes {
+            let json = serde_json::to_string(&mode).expect("Failed to serialize routing mode");
+            let deserialized: OutputRoutingMode =
+                serde_json::from_str(&json).expect("Failed to deserialize routing mode");
+            assert_eq!(mode, deserialized);
+        }
+    }
+
+    #[test]
+    fn test_audio_device_info_serde() {
+        let info = AudioDeviceInfo {
+            name: "Focusrite Scarlett 2i2 USB".into(),
+            max_channels: 2,
+            default_sample_rate: 48000,
+            is_default: true,
+        };
+        let json = serde_json::to_string(&info).expect("serialize AudioDeviceInfo");
+        let parsed: AudioDeviceInfo = serde_json::from_str(&json).expect("deserialize AudioDeviceInfo");
+        assert_eq!(parsed.name, info.name);
+        assert_eq!(parsed.max_channels, 2);
+        assert_eq!(parsed.default_sample_rate, 48000);
+        assert!(parsed.is_default);
+    }
+}

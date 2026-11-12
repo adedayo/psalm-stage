@@ -1,0 +1,22 @@
+{
+  "id": "demo-praise",
+  "title": "Sample Worship Arrangement",
+  "artist": "Psalm Stage Template",
+  "bpm": 72.0,
+  "time_signature": [4, 4],
+  "first_downbeat_sec": 0.0,
+  "original_key": "G",
+  "sections": [
+    { "id": "intro", "name": "Intro", "start_bar": 1, "end_bar": 5 },
+    { "id": "verse", "name": "Verse 1", "start_bar": 5, "end_bar": 13 },
+    { "id": "chorus", "name": "Chorus", "start_bar": 13, "end_bar": 21 },
+    { "id": "bridge", "name": "Bridge", "start_bar": 21, "end_bar": 29 },
+    { "id": "outro", "name": "Outro", "start_bar": 29, "end_bar": 33 }
+  ],
+  "stems": {
+    "drums": { "file": "drums.wav", "pitched": false, "default_gain": 0.9 },
+    "bass": { "file": "bass.wav", "pitched": true, "default_gain": 0.9 },
+    "music": { "file": "music.wav", "pitched": true, "default_gain": 0.9 },
+    "cues": { "file": "cues.wav", "pitched": false, "default_gain": 0.85 }
+  }
+}

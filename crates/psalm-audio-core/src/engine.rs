@@ -1164,4 +1164,102 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn test_quantize_mode_serde() {
+        let modes = [QuantizeMode::NextBar, QuantizeMode::EndOfSection];
+        for mode in modes {
+            let s = serde_json::to_string(&mode).unwrap();
+            let parsed: QuantizeMode = serde_json::from_str(&s).unwrap();
+            assert_eq!(mode, parsed);
+        }
+    }
+
+    #[test]
+    fn test_engine_command_serde() {
+        let cmds = vec![
+            EngineCommand::Play,
+            EngineCommand::Stop,
+            EngineCommand::PlayStop,
+            EngineCommand::QueueSectionById("chorus".into()),
+            EngineCommand::QueueSectionBySlot(2),
+            EngineCommand::NextSection,
+            EngineCommand::PrevSection,
+            EngineCommand::ToggleLoop,
+            EngineCommand::SetLoop(true),
+            EngineCommand::SetQuantizeMode(QuantizeMode::EndOfSection),
+            EngineCommand::SetKeyShift(2),
+            EngineCommand::AdjustKeyShift(-1),
+            EngineCommand::SetBpm(84.0),
+            EngineCommand::AdjustBpm(2.0),
+            EngineCommand::SetMasterGain(0.8),
+            EngineCommand::SetClickGain(0.5),
+            EngineCommand::SetClickMuted(true),
+            EngineCommand::SetStemGain { name: "drums".into(), gain: 0.7 },
+            EngineCommand::SetStemMuted { name: "drums".into(), muted: true },
+        ];
+        for cmd in cmds {
+            let json = serde_json::to_string(&cmd).expect("serialize EngineCommand");
+            let _parsed: EngineCommand = serde_json::from_str(&json).expect("deserialize EngineCommand");
+        }
+    }
+
+    #[test]
+    fn test_stem_mute_silences_stem() {
+        let sample_rate = 48000;
+        let mut song = generate_demo_song(sample_rate);
+        for stem in song.stems.iter_mut() {
+            if stem.name != "music" {
+                stem.gain = 0.0;
+            } else {
+                stem.gain = 1.0;
+                stem.muted = false;
+            }
+        }
+        let (producer, _consumer) = RingBuffer::<BusFrame>::new(4096);
+        let mut state = MixerState {
+            song,
+            sample_rate,
+            is_playing: true,
+            source_frame_pos: 0.0,
+            last_beat_index: None,
+            active_section_idx: Some(0),
+            armed_section_idx: None,
+            loop_enabled: false,
+            quantize_mode: QuantizeMode::NextBar,
+            key_shift_semitones: 0,
+            current_bpm: 72.0,
+            click_gain: 0.0,
+            click_muted: true,
+            device_name: "test".into(),
+            device_channels: 2,
+            _stream: None,
+            producer,
+            click_synth: ClickSynth::new(sample_rate),
+            click_delay: ClickDelayBuffer::new(16384),
+            pitched_stretcher: StemStretcher::new(sample_rate),
+            drums_stretcher: StemStretcher::new(sample_rate),
+            cues_stretcher: StemStretcher::new(sample_rate),
+            pitched_in: Vec::new(),
+            drums_in: Vec::new(),
+            cues_in: Vec::new(),
+            pitched_out: Vec::new(),
+            drums_out: Vec::new(),
+            cues_out: Vec::new(),
+            crossfade_remaining: 0,
+            crossfade_total: 100,
+            prev_tail: Vec::new(),
+        };
+
+        let block_unmuted = state.render_block(256);
+        let energy_unmuted: f32 = block_unmuted.iter().map(|f| f.music_l.abs()).sum();
+        assert!(energy_unmuted > 0.01, "Unmuted stem should produce energy");
+
+        if let Some(music) = state.song.stems.iter_mut().find(|s| s.name == "music") {
+            music.muted = true;
+        }
+        let block_muted = state.render_block(256);
+        let energy_muted: f32 = block_muted.iter().map(|f| f.music_l.abs()).sum();
+        assert_eq!(energy_muted, 0.0, "Muted stem should produce zero energy");
+    }
 }

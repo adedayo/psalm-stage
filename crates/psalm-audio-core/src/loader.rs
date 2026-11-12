@@ -400,3 +400,31 @@ pub fn generate_demo_song(sample_rate: u32) -> LoadedSong {
         total_frames,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_generate_demo_song() {
+        let song = generate_demo_song(48000);
+        assert_eq!(song.sample_rate, 48000);
+        assert_eq!(song.manifest.bpm, 72.0);
+        assert_eq!(song.manifest.time_signature, [4, 4]);
+        assert_eq!(song.stems.len(), 3);
+        assert!(song.total_frames > 0);
+        assert_eq!(song.manifest.sections.len(), 5);
+
+        let drums = song.stems.iter().find(|s| s.name == "drums").unwrap();
+        assert!(!drums.pitched);
+        let music = song.stems.iter().find(|s| s.name == "music").unwrap();
+        assert!(music.pitched);
+    }
+
+    #[test]
+    fn test_resample_stereo_linear() {
+        let input = vec![0.0, 0.0, 1.0, 1.0]; // 2 frames stereo
+        let resampled = resample_stereo_linear(&input, 44100, 88200);
+        assert_eq!(resampled.len(), 8); // 4 frames stereo
+    }
+}

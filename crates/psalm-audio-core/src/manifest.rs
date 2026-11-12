@@ -194,4 +194,120 @@ mod tests {
         assert_eq!(bar, 3);
         assert_eq!(beat, 1);
     }
+
+    #[test]
+    fn test_manifest_validation_rejects_invalid_bpm() {
+        let mut m = SongManifest {
+            id: "test".into(),
+            title: "Test".into(),
+            artist: "".into(),
+            bpm: 5.0, // Invalid: <= 10.0
+            time_signature: [4, 4],
+            first_downbeat_sec: 0.0,
+            original_key: "C".into(),
+            beats: vec![],
+            sections: vec![],
+            stems: HashMap::new(),
+        };
+        assert!(m.validate().is_err());
+
+        m.bpm = 350.0; // Invalid: > 300.0
+        assert!(m.validate().is_err());
+
+        m.bpm = 72.0; // Valid
+        assert!(m.validate().is_ok());
+    }
+
+    #[test]
+    fn test_manifest_validation_rejects_zero_time_sig() {
+        let m = SongManifest {
+            id: "test".into(),
+            title: "Test".into(),
+            artist: "".into(),
+            bpm: 120.0,
+            time_signature: [0, 4], // Invalid: numerator must be > 0
+            first_downbeat_sec: 0.0,
+            original_key: "C".into(),
+            beats: vec![],
+            sections: vec![],
+            stems: HashMap::new(),
+        };
+        assert!(m.validate().is_err());
+    }
+
+    #[test]
+    fn test_manifest_validation_rejects_invalid_section_bars() {
+        let m = SongManifest {
+            id: "test".into(),
+            title: "Test".into(),
+            artist: "".into(),
+            bpm: 120.0,
+            time_signature: [4, 4],
+            first_downbeat_sec: 0.0,
+            original_key: "C".into(),
+            beats: vec![],
+            sections: vec![SectionDef {
+                id: "intro".into(),
+                name: "Intro".into(),
+                start_bar: 5,
+                end_bar: 4, // Invalid: end_bar <= start_bar
+                color: None,
+            }],
+            stems: HashMap::new(),
+        };
+        assert!(m.validate().is_err());
+    }
+
+    #[test]
+    fn test_stem_def_is_pitched_and_cues() {
+        let drums = StemDef::Detailed {
+            file: "drums.wav".into(),
+            pitched: false,
+            default_gain: 0.9,
+        };
+        assert!(!drums.is_pitched("drums"));
+        assert!(!drums.is_cues("drums"));
+        assert_eq!(drums.file_name(), "drums.wav");
+
+        let bass = StemDef::Detailed {
+            file: "bass.wav".into(),
+            pitched: true,
+            default_gain: 0.9,
+        };
+        assert!(bass.is_pitched("bass"));
+        assert!(!bass.is_cues("bass"));
+
+        let cues = StemDef::Detailed {
+            file: "cues.wav".into(),
+            pitched: false,
+            default_gain: 0.8,
+        };
+        assert!(!cues.is_pitched("cues"));
+        assert!(cues.is_cues("cues"));
+
+        let bare_drums = StemDef::File("drums.wav".into());
+        assert!(!bare_drums.is_pitched("drums"));
+        let bare_synth = StemDef::File("synth.wav".into());
+        assert!(bare_synth.is_pitched("synth"));
+    }
+
+    #[test]
+    fn test_setlist_manifest_deserialization() {
+        let json = r#"{
+            "id": "sunday-service",
+            "name": "Sunday Morning Set",
+            "items": [
+                { "song_id": "living-hope", "key_shift_semitones": 2, "bpm_override": 74.0 },
+                { "song_id": "gratitude", "key_shift_semitones": 0 }
+            ]
+        }"#;
+
+        let setlist: SetlistManifest = serde_json::from_str(json).expect("deserialize setlist");
+        assert_eq!(setlist.id, "sunday-service");
+        assert_eq!(setlist.items.len(), 2);
+        assert_eq!(setlist.items[0].key_shift_semitones, 2);
+        assert_eq!(setlist.items[0].bpm_override, Some(74.0));
+        assert_eq!(setlist.items[1].key_shift_semitones, 0);
+        assert_eq!(setlist.items[1].bpm_override, None);
+    }
 }

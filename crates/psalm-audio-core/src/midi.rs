@@ -127,3 +127,44 @@ pub fn parse_raw_midi(device_name: &str, bytes: &[u8]) -> Option<RawMidiEvent> {
         _ => None,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_raw_midi_note_on() {
+        let ev = parse_raw_midi("Pedal", &[0x90, 60, 100]).expect("expected Note On");
+        assert_eq!(ev.channel, 1);
+        assert_eq!(ev.kind, MidiMessageKind::Note);
+        assert_eq!(ev.number, 60);
+        assert_eq!(ev.value, 100);
+
+        // Velocity 0 should be ignored (treated as Note Off)
+        assert!(parse_raw_midi("Pedal", &[0x90, 60, 0]).is_none());
+    }
+
+    #[test]
+    fn test_parse_raw_midi_control_change() {
+        let ev = parse_raw_midi("Knob", &[0xB2, 7, 95]).expect("expected CC");
+        assert_eq!(ev.channel, 3); // Channel 3 (0xB2 & 0x0F + 1)
+        assert_eq!(ev.kind, MidiMessageKind::ControlChange);
+        assert_eq!(ev.number, 7);
+        assert_eq!(ev.value, 95);
+    }
+
+    #[test]
+    fn test_parse_raw_midi_program_change() {
+        let ev = parse_raw_midi("Switch", &[0xC0, 12]).expect("expected PC");
+        assert_eq!(ev.channel, 1);
+        assert_eq!(ev.kind, MidiMessageKind::ProgramChange);
+        assert_eq!(ev.number, 12);
+        assert_eq!(ev.value, 127);
+    }
+
+    #[test]
+    fn test_parse_raw_midi_invalid() {
+        assert!(parse_raw_midi("Device", &[]).is_none());
+        assert!(parse_raw_midi("Device", &[0xF8]).is_none()); // Clock tick
+    }
+}

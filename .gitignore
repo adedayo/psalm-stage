@@ -42,3 +42,11 @@ __screenshots__/
 # System files
 .DS_Store
 Thumbs.db
+
+# Rust target
+/target/
+src-tauri/target/
+
+# Nx & local build cache
+/.nx/
+
