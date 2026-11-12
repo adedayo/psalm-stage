@@ -34,3 +34,4 @@ jobs:
 
       - name: Verify Angular production build
         run: npm run build
+

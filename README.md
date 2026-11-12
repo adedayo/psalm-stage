@@ -43,6 +43,11 @@ Visit the [**GitHub Releases**](https://github.com/dayo-a/psalm-stage/releases) 
 | **Windows 10 / 11** | `Psalm-Stage_0.1.0_x64-setup.exe` | Double-click the `.exe` installer. A desktop shortcut and Start menu entry are created automatically. |
 | **Linux** | `Psalm-Stage_0.1.0_amd64.AppImage` | Right-click the `.AppImage`, enable "Allow executing file as program", and double-click to launch. |
 
+> [!TIP] First-Time Launch Note (Free Open-Source Distribution)
+> You do **not** need to buy any Apple or Microsoft developer licenses. Because Psalm Stage is distributed as free community software:
+> * **macOS**: On first launch, if Gatekeeper shows *"Cannot verify developer"*, right-click (or Control-click) `Psalm Stage.app` in your **Applications** folder and select **Open**, then click **Open**. (Or go to **System Settings → Privacy & Security** and click **"Open Anyway"**). macOS remembers this permission permanently.
+> * **Windows**: If Windows Defender SmartScreen displays *"Unknown Publisher"*, click **More info** $\to$ **Run anyway**.
+
 For detailed packaging architecture, automated CI/CD release builds, and enterprise code-signing details, see [**docs/DEPLOYMENT_AND_RELEASES.md**](docs/DEPLOYMENT_AND_RELEASES.md).
 
 ---

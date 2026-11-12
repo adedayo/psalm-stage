@@ -89,24 +89,46 @@ src-tauri/target/release/bundle/
 
 ---
 
-## 4. Code Signing & Notarization
+## 4. Code Signing: Do You Need an Apple Developer License?
 
-To eliminate OS security warnings ("Unknown Publisher" on Windows SmartScreen or "App cannot be opened" on macOS Gatekeeper), production releases can be signed with official developer certificates:
+> [!TIP] Short Answer: **NO, you do NOT need an Apple Developer license or any paid subscription!**
+> You can build, package, and distribute `.dmg` and `.exe` installers **100% free of charge**. An Apple Developer Program subscription ($99/year) or Windows Authenticode certificate ($300+/year) is **completely optional**.
 
-### 4.1 macOS Notarization (Apple Developer ID)
-Configure the following GitHub repository secrets:
+### 4.1 How It Works Without a Paid License (Free Open-Source Mode)
+
+When you distribute Psalm Stage as a free open-source tool without paid developer certificates, modern operating systems display a standard one-time security prompt:
+
+#### On macOS (Gatekeeper):
+1. User downloads the `.dmg` and drags `Psalm Stage` into `Applications`.
+2. On first launch, macOS says: *"macOS cannot verify the developer of Psalm Stage"* or *"App downloaded from internet"*.
+3. **The 2-Second First-Time Fix**:
+   * Right-click (or Control-click) `Psalm Stage` in the **Applications** folder and select **Open**.
+   * Click **Open** on the confirmation dialog.
+   * *(Alternatively: go to **System Settings → Privacy & Security**, scroll down, and click **"Open Anyway"**).*
+4. macOS records this permission in its local quarantine database. **You only ever have to do this once.** Every subsequent launch on Sunday mornings opens instantly like any normal app!
+
+#### On Windows (Microsoft Defender SmartScreen):
+1. User runs `Psalm-Stage_0.1.0_x64-setup.exe`.
+2. Windows displays: *"Windows protected your PC (Unknown Publisher)"*.
+3. User clicks **"More info"** $\to$ clicks **"Run anyway"**.
+4. The installer completes and creates desktop shortcuts. It never asks again.
+
+---
+
+### 4.2 Paid Signing (Completely Optional for Organizations)
+
+If a church, ministry, or commercial entity chooses to purchase an Apple Developer account ($99/year) or Windows certificate to eliminate the one-time prompt entirely:
+
+#### Optional macOS Notarization Setup:
+Add these secrets to your GitHub repository under **Settings → Secrets and variables → Actions**:
 * `APPLE_CERTIFICATE`: Base64-encoded Developer ID Application `.p12` certificate.
 * `APPLE_CERTIFICATE_PASSWORD`: Password for the `.p12` certificate.
 * `APPLE_ID`: Apple Developer account email.
 * `APPLE_PASSWORD`: App-Specific Password generated on appleid.apple.com.
 * `APPLE_TEAM_ID`: 10-character Apple Developer Team ID.
 
-When present, `tauri-action` signs the `.app` bundle, submits it to Apple's notary service via `notarytool`, and staples the notarization ticket directly onto the `.dmg`.
-
-### 4.2 Windows Code Signing (Authenticode)
-Configure:
-* `WINDOWS_CERTIFICATE`: Base64-encoded `.pfx` code-signing certificate.
-* `WINDOWS_CERTIFICATE_PASSWORD`: Password for the certificate.
+If these secrets are present, GitHub Actions signs the `.app` bundle, submits it to Apple's notary service via `notarytool`, and staples the notarization ticket onto the `.dmg`.
+**If these secrets are not present, GitHub Actions automatically builds clean, functional unsigned `.dmg` and `.exe` installers with zero errors!**
 
 ---
 
@@ -117,3 +139,4 @@ Psalm Stage integrates the Tauri v2 updater mechanism. When launched on a stage 
 2. The user clicks **"Update Now"**.
 3. The app downloads the binary diff, verifies the cryptographic signature, installs it in place, and restarts seamlessly.
 4. If the laptop is offline (standard Sunday morning stage mode), the check silently skips with zero interruption.
+

@@ -121,3 +121,4 @@ This automatically invokes `.github/workflows/release.yml`, compiling all platfo
 
 - **`test_dmg_bundle_structure`**: Verifies that the `.dmg` contains a valid `.app` bundle, `Applications` symlink, volume icon, and plist entries.
 - **`test_windows_nsis_installer`**: Verifies that the NSIS installer properly writes uninstallation registry entries and installs cleanly in standard user directory without requiring Administrator elevation.
+
