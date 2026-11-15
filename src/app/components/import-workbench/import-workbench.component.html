@@ -1,0 +1,1228 @@
+<div class="flex flex-col gap-4" [class.pb-28]="!!manifest()">
+  <!-- Workbench Header -->
+  <div
+    class="rounded-xl border border-zinc-800 bg-zinc-900/90 px-4 py-3 flex flex-wrap items-center justify-between gap-3 shadow-sm">
+    <div>
+      <div class="flex items-center gap-2.5">
+        <h2 class="text-base font-semibold tracking-tight text-zinc-100">Audio Import & Stem Workbench</h2>
+        <span hlmBadge variant="outline" class="border-cyan-500/40 text-cyan-300 text-[10px]">
+          OPTIONAL PREP PIPELINE
+        </span>
+      </div>
+      <p class="text-xs text-zinc-400">
+        Import WAV/MP3/YouTube tracks, optionally split stems locally (UVR / Demucs), align bar grids, and publish to
+        your Song Library.
+      </p>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-2">
+      <button hlmBtn variant="outline" size="sm" type="button"
+        (click)="showToolchainDrawer.set(!showToolchainDrawer())">
+        Optional Toolchain Setup
+      </button>
+      <button hlmBtn variant="secondary" size="sm" type="button" (click)="goToStudio.emit()">
+        ← Back to Setlist Studio
+      </button>
+    </div>
+  </div>
+
+  <!-- Optional Toolchain Health & Platform Install Guide Drawer -->
+  @if (showToolchainDrawer()) {
+  <div hlmCard class="bg-zinc-900 border-zinc-800">
+    <div hlmCardHeader class="flex flex-row flex-wrap items-start justify-between gap-3 pb-2">
+      <div>
+        <h3 hlmCardTitle class="text-sm">Optional Toolchain Setup & Platform Install Guide</h3>
+        <p hlmCardDescription class="text-xs text-zinc-400">
+          Live Stage playback requires zero external dependencies. Install tools below only for YouTube downloads or local AI stem separation.
+        </p>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="inline-flex rounded-md border border-zinc-800 bg-zinc-950 p-0.5 text-[11px]">
+          @for (tab of platformTabs; track tab) {
+          <button type="button" class="px-2.5 py-1 rounded transition-colors cursor-pointer"
+            [class]="guidePlatform() === tab ? 'bg-amber-500 text-zinc-950 font-semibold' : 'text-zinc-400 hover:text-zinc-200'"
+            (click)="guidePlatform.set(tab)">
+            {{ platformGuides[tab].label }}
+          </button>
+          }
+        </div>
+        <button hlmBtn variant="ghost" size="xs" type="button" (click)="showToolchainDrawer.set(false)">
+          Hide
+        </button>
+      </div>
+    </div>
+    <div hlmCardContent class="space-y-4 text-xs">
+      <!-- Live Tool Status Grid -->
+      @if (stage.toolchainStatus(); as ts) {
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-2.5">
+        @for (tool of [ts.ffmpeg, ts.yt_dlp, ts.audio_separator, ts.demucs]; track tool.id) {
+        <div class="rounded-lg border border-zinc-800 bg-zinc-950 p-2.5 space-y-1.5">
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-1.5 min-w-0">
+              <span class="h-2 w-2 rounded-full shrink-0" [class]="tool.available ? 'bg-emerald-400' : 'bg-zinc-600'"></span>
+              <span class="font-semibold text-zinc-100 truncate">{{ tool.name }}</span>
+            </div>
+            <span class="rounded px-1.5 py-0.5 text-[10px] font-mono shrink-0"
+              [class]="tool.available ? 'bg-emerald-500/15 text-emerald-300' : 'bg-zinc-800 text-zinc-400'">
+              {{ tool.available ? 'Ready' : 'Missing' }}
+            </span>
+          </div>
+          <p class="text-[11px] text-zinc-400 line-clamp-2">{{ tool.purpose }}</p>
+          @if (tool.resolved_path) {
+          <div class="font-mono text-[10px] text-emerald-400/80 truncate" [title]="tool.resolved_path">
+            {{ tool.resolved_path }}
+          </div>
+          } @else {
+          <div class="font-mono text-[10px] text-zinc-500 truncate">Not detected in PATH</div>
+          }
+        </div>
+        }
+      </div>
+      }
+
+      <!-- Per-Platform Step-by-Step Setup Guide -->
+      @let guide = activePlatformGuide();
+      <div class="rounded-xl border border-zinc-800 bg-zinc-950/90 p-3.5 space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <span class="font-semibold text-amber-300">{{ guide.label }} Quick-Install Guide</span>
+          <span class="text-[11px] text-zinc-500">Run in Terminal / PowerShell, then click Re-Scan</span>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-2.5">
+          <div class="rounded-lg border border-zinc-800 bg-zinc-900 p-2.5 space-y-1.5">
+            <div class="text-[11px] font-semibold text-zinc-200">1. YouTube + Audio (yt-dlp &amp; FFmpeg)</div>
+            <div class="flex items-center justify-between gap-2 rounded bg-zinc-950 border border-zinc-800 px-2 py-1.5">
+              <code class="font-mono text-[11px] text-amber-300 break-all">{{ guide.youtubeCommand }}</code>
+              <button type="button" class="text-[10px] text-zinc-400 hover:text-zinc-100 shrink-0 cursor-pointer"
+                (click)="copyCommand(guide.youtubeCommand)">
+                {{ copiedHint() === guide.youtubeCommand ? 'Copied!' : 'Copy' }}
+              </button>
+            </div>
+          </div>
+
+          <div class="rounded-lg border border-zinc-800 bg-zinc-900 p-2.5 space-y-1.5">
+            <div class="text-[11px] font-semibold text-zinc-200">2. Optional AI Stems (UVR CLI)</div>
+            <div class="flex items-center justify-between gap-2 rounded bg-zinc-950 border border-zinc-800 px-2 py-1.5">
+              <code class="font-mono text-[11px] text-cyan-300 break-all">{{ guide.stemCommand }}</code>
+              <button type="button" class="text-[10px] text-zinc-400 hover:text-zinc-100 shrink-0 cursor-pointer"
+                (click)="copyCommand(guide.stemCommand)">
+                {{ copiedHint() === guide.stemCommand ? 'Copied!' : 'Copy' }}
+              </button>
+            </div>
+          </div>
+
+          <div class="rounded-lg border border-zinc-800 bg-zinc-900 p-2.5 space-y-1.5">
+            <div class="text-[11px] font-semibold text-zinc-200">3. Find Installed Binary Paths</div>
+            <div class="flex items-center justify-between gap-2 rounded bg-zinc-950 border border-zinc-800 px-2 py-1.5">
+              <code class="font-mono text-[11px] text-zinc-300 break-all">{{ guide.locateCommand }}</code>
+              <button type="button" class="text-[10px] text-zinc-400 hover:text-zinc-100 shrink-0 cursor-pointer"
+                (click)="copyCommand(guide.locateCommand)">
+                {{ copiedHint() === guide.locateCommand ? 'Copied!' : 'Copy' }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <ul class="space-y-1 text-[11px] text-zinc-400 list-disc list-inside">
+          @for (note of guide.notes; track note) {
+          <li>{{ note }}</li>
+          }
+          <li>
+            Prefer a desktop GUI? Use <strong>Ultimate Vocal Remover (UVR)</strong> GUI to export stems to a folder, then choose <strong>Open Folder</strong> below.
+          </li>
+        </ul>
+      </div>
+
+      <!-- Custom Binary Path Pickers -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 pt-2 border-t border-zinc-800">
+        <div>
+          <label class="block text-[11px] text-zinc-400 mb-1">Custom FFmpeg Path</label>
+          <div class="flex gap-1">
+            <input type="text"
+              class="flex-1 min-w-0 rounded border border-zinc-700 bg-zinc-950 px-2 py-1 font-mono text-[11px] text-zinc-100"
+              placeholder="Auto-detect" [ngModel]="pathFfmpeg()" (ngModelChange)="pathFfmpeg.set($event)" />
+            <button hlmBtn variant="outline" size="xs" type="button" (click)="browseToolBinary('ffmpeg')">…</button>
+          </div>
+        </div>
+        <div>
+          <label class="block text-[11px] text-zinc-400 mb-1">Custom yt-dlp Path</label>
+          <div class="flex gap-1">
+            <input type="text"
+              class="flex-1 min-w-0 rounded border border-zinc-700 bg-zinc-950 px-2 py-1 font-mono text-[11px] text-zinc-100"
+              placeholder="Auto-detect" [ngModel]="pathYtDlp()" (ngModelChange)="pathYtDlp.set($event)" />
+            <button hlmBtn variant="outline" size="xs" type="button" (click)="browseToolBinary('yt_dlp')">…</button>
+          </div>
+        </div>
+        <div>
+          <label class="block text-[11px] text-zinc-400 mb-1">Custom audio-separator (UVR)</label>
+          <div class="flex gap-1">
+            <input type="text"
+              class="flex-1 min-w-0 rounded border border-zinc-700 bg-zinc-950 px-2 py-1 font-mono text-[11px] text-zinc-100"
+              placeholder="Auto-detect" [ngModel]="pathAudioSeparator()"
+              (ngModelChange)="pathAudioSeparator.set($event)" />
+            <button hlmBtn variant="outline" size="xs" type="button" (click)="browseToolBinary('audio_separator')">…</button>
+          </div>
+        </div>
+        <div>
+          <label class="block text-[11px] text-zinc-400 mb-1">Custom Demucs Path</label>
+          <div class="flex gap-1">
+            <input type="text"
+              class="flex-1 min-w-0 rounded border border-zinc-700 bg-zinc-950 px-2 py-1 font-mono text-[11px] text-zinc-100"
+              placeholder="Auto-detect" [ngModel]="pathDemucs()" (ngModelChange)="pathDemucs.set($event)" />
+            <button hlmBtn variant="outline" size="xs" type="button" (click)="browseToolBinary('demucs')">…</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2">
+        <button hlmBtn variant="outline" size="xs" type="button" (click)="stage.detectWorkbenchTools()">
+          Re-Scan
+        </button>
+        <button hlmBtn size="xs" type="button" (click)="saveToolchainPaths()">
+          Save Paths &amp; Detect
+        </button>
+      </div>
+    </div>
+  </div>
+  }
+
+  <!-- Main Workbench Grid -->
+  <div class="grid grid-cols-1 xl:grid-cols-12 gap-4 items-start">
+    <!-- Left Column: Audio Source & Optional Separation Pipeline -->
+    <section class="xl:col-span-4 rounded-xl border border-zinc-800 bg-zinc-900 p-4 space-y-4">
+      <div class="inline-flex w-full rounded-lg border border-zinc-800 bg-zinc-950 p-1 text-xs">
+        <button type="button" class="flex-1 py-1.5 rounded-md transition-colors cursor-pointer"
+          [class]="ingestTab() === 'file' ? 'bg-zinc-800 text-amber-300 font-semibold' : 'text-zinc-400 hover:text-zinc-200'"
+          (click)="ingestTab.set('file')">
+          Local Audio
+        </button>
+        <button type="button" class="flex-1 py-1.5 rounded-md transition-colors cursor-pointer"
+          [class]="ingestTab() === 'youtube' ? 'bg-zinc-800 text-amber-300 font-semibold' : 'text-zinc-400 hover:text-zinc-200'"
+          (click)="ingestTab.set('youtube')">
+          YouTube URL
+        </button>
+        <button type="button" class="flex-1 py-1.5 rounded-md transition-colors cursor-pointer"
+          [class]="ingestTab() === 'folder' ? 'bg-zinc-800 text-amber-300 font-semibold' : 'text-zinc-400 hover:text-zinc-200'"
+          (click)="ingestTab.set('folder')">
+          Open Folder
+        </button>
+      </div>
+
+      @if (ingestTab() === 'file') {
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block text-zinc-400 mb-1">Audio File (WAV, MP3, FLAC, OGG, M4A)</label>
+          <div class="flex gap-2">
+            <input type="text"
+              class="flex-1 rounded border border-zinc-700 bg-zinc-950 px-2.5 py-1.5 font-mono text-zinc-100"
+              placeholder="/path/to/song.mp3" [ngModel]="localFilePath()"
+              (ngModelChange)="localFilePath.set($event); onSourceInputChanged()" />
+            <button hlmBtn variant="secondary" size="sm" type="button" (click)="browseAudioFile()">
+              Browse
+            </button>
+          </div>
+        </div>
+        <div>
+          <label class="block text-zinc-400 mb-1">Song Title in Library</label>
+          <input type="text" class="w-full rounded border border-zinc-700 bg-zinc-950 px-2.5 py-1.5 text-zinc-100"
+            placeholder="e.g. Goodness of God" [ngModel]="songTitleInput()"
+            (ngModelChange)="songTitleInput.set($event)" />
+        </div>
+      </div>
+      }
+
+      @if (ingestTab() === 'youtube') {
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block text-zinc-400 mb-1">YouTube Video URL</label>
+          <div class="flex gap-2">
+            <input type="url" class="flex-1 rounded border border-zinc-700 bg-zinc-950 px-2.5 py-1.5 text-zinc-100"
+              placeholder="https://www.youtube.com/watch?v=..." [ngModel]="youtubeUrl()"
+              (ngModelChange)="youtubeUrl.set($event); onSourceInputChanged()" />
+            <button hlmBtn variant="secondary" size="sm" type="button" [disabled]="youtubeProbing()"
+              [attr.aria-busy]="youtubeProbing()" (click)="fetchYouTubeInfo()">
+              @if (youtubeProbing()) {
+              <progress aria-label="Looking up YouTube video" class="psalm-btn-spinner"></progress>
+              <span>Checking…</span>
+              } @else {
+              <span>Lookup</span>
+              }
+            </button>
+          </div>
+        </div>
+
+        @if (youtubeMeta(); as yt) {
+        <div class="psalm-reveal rounded-lg border border-emerald-500/30 bg-emerald-950/20 p-2.5 space-y-1">
+          <div class="font-semibold text-emerald-200">{{ yt.title }}</div>
+          <div class="text-[11px] text-zinc-400">
+            {{ yt.uploader || 'YouTube' }} • {{ formatTime(yt.duration_sec) }}
+          </div>
+        </div>
+        }
+
+        <div>
+          <label class="block text-zinc-400 mb-1">Song Title in Library</label>
+          <input type="text" class="w-full rounded border border-zinc-700 bg-zinc-950 px-2.5 py-1.5 text-zinc-100"
+            placeholder="Auto-filled from YouTube title" [ngModel]="songTitleInput()"
+            (ngModelChange)="songTitleInput.set($event)" />
+        </div>
+      </div>
+      }
+
+      @if (ingestTab() === 'folder') {
+      <div class="space-y-3 text-xs">
+        <button hlmBtn variant="secondary" size="sm" type="button" class="w-full" (click)="browseFolderForWorkbench()">
+          Browse Any Song / Stems Folder…
+        </button>
+
+        <div class="space-y-1.5 max-h-52 overflow-y-auto pt-1">
+          <div class="text-[11px] uppercase tracking-wider text-zinc-500">Quick Open from Library</div>
+          @for (entry of stage.libraryEntries(); track entry.dir) {
+          <button type="button"
+            class="w-full rounded-md border border-zinc-800 bg-zinc-950 hover:border-amber-500/40 px-2.5 py-1.5 flex items-center justify-between text-left cursor-pointer"
+            (click)="openFolderInWorkbench(entry.dir)">
+            <span class="truncate text-zinc-200 font-medium">{{ entry.title }}</span>
+            <span class="text-[10px] font-mono text-zinc-400 ml-2 shrink-0">
+              {{ entry.status === 'NeedsSetup' ? 'Needs Setup' : entry.original_key }}
+            </span>
+          </button>
+          }
+        </div>
+      </div>
+      }
+
+      <!-- Optional Local Stem Separation Settings -->
+      @if (ingestTab() !== 'folder') {
+      <div class="border-t border-zinc-800 pt-3 space-y-3 text-xs">
+        <div class="flex items-center justify-between">
+          <span class="font-semibold text-zinc-200">Stem Separation Engine</span>
+          <span class="text-[10px] text-zinc-500">Optional</span>
+        </div>
+
+        <div class="space-y-1.5">
+          @for (opt of [
+          { id: 'None', title: 'Direct Backing Track (Fastest)', desc: 'Zero ML wait — imports as single stereo track'
+          },
+          { id: 'AudioSeparator', title: 'UVR (audio-separator)', desc: 'MDX-Net, Roformer & Demucs via UVR CLI' },
+          { id: 'Demucs', title: 'Demucs Local CLI', desc: 'Meta Hybrid Transformer 4-stem / 6-stem' }
+          ]; track opt.id) {
+          <button type="button" class="w-full rounded-lg border px-3 py-2 text-left transition-colors cursor-pointer"
+            [class]="separationEngine() === opt.id
+                  ? 'border-amber-500/60 bg-amber-500/10'
+                  : 'border-zinc-800 bg-zinc-950 hover:border-zinc-700'" (click)="separationEngine.set($any(opt.id))">
+            <div class="font-semibold text-zinc-100">{{ opt.title }}</div>
+            <div class="text-[11px] text-zinc-400">{{ opt.desc }}</div>
+          </button>
+          }
+        </div>
+
+        @if (separationEngine() !== 'None') {
+        <div class="space-y-2 rounded-lg border border-zinc-800 bg-zinc-950 p-2.5">
+          <div>
+            <label class="block text-[11px] text-zinc-400 mb-1">Stem Split Preset</label>
+            <select class="w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-zinc-100"
+              [ngModel]="stemPreset()" (ngModelChange)="stemPreset.set($event)">
+              <option value="TwoStems">2 Stems (Vocals + Instrumental)</option>
+              <option value="FourStems">4 Stems (Drums, Bass, Vocals, Music)</option>
+              <option value="SixStems">6 Stems (Drums, Bass, Vocals, Guitar, Piano, Music)</option>
+              @if (separationEngine() === 'AudioSeparator') {
+              <option value="Custom">Custom UVR Model Filename</option>
+              }
+            </select>
+          </div>
+
+          @if (separationEngine() === 'AudioSeparator' && stemPreset() === 'Custom') {
+          <div>
+            <label class="block text-[11px] text-zinc-400 mb-1">UVR Model Name</label>
+            <input type="text"
+              class="w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1 font-mono text-[11px] text-zinc-100"
+              [ngModel]="customUvrModel()" (ngModelChange)="customUvrModel.set($event)" />
+          </div>
+          }
+        </div>
+        }
+
+        @if (cachedLibraryMatch(); as cached) {
+        <div class="rounded-lg border border-emerald-500/40 bg-emerald-950/20 p-2.5 space-y-2">
+          <div class="flex items-start justify-between gap-2">
+            <div class="min-w-0">
+              <div class="font-semibold text-emerald-200 truncate">
+                Already in Library: {{ cached.title }}
+              </div>
+              <div class="text-[11px] text-zinc-300 mt-0.5">
+                {{ cached.stem_names.length }} stems • {{ cached.bpm | number: '1.0-0' }} BPM • Key {{ cached.original_key }}
+                @if (cached.provenance; as prov) {
+                  • {{ prov.separation_engine }} ({{ prov.stem_preset }})
+                }
+              </div>
+            </div>
+          </div>
+          <div class="flex flex-wrap items-center gap-1.5">
+            <button hlmBtn variant="secondary" size="xs" type="button" (click)="openFolderInWorkbench(cached.dir)">
+              Open Existing
+            </button>
+            <button hlmBtn variant="outline" size="xs" type="button" (click)="quickAddCachedToSetlist(cached)">
+              + Add to Setlist
+            </button>
+          </div>
+          <label class="flex items-start gap-2 pt-1 border-t border-emerald-500/20 text-[11px] text-zinc-200 cursor-pointer">
+            <input type="checkbox" class="mt-0.5 accent-amber-500 cursor-pointer" [ngModel]="forceReextract()"
+              (ngModelChange)="forceReextract.set($event)" />
+            <span>
+              <strong>Force Re-Extract</strong> (overwrite with selected engine/model)
+              @if (cachedSeparationChanged() && !forceReextract()) {
+              <span class="block text-amber-300 mt-0.5">
+                Different engine or preset selected — check Force Re-Extract to re-run separation.
+              </span>
+              }
+            </span>
+          </label>
+        </div>
+        }
+
+        <div class="flex items-center gap-2">
+          <button hlmBtn type="button" class="flex-1 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-semibold"
+            [disabled]="isJobRunning()" [attr.aria-busy]="isJobRunning()" (click)="startImportPipeline()">
+            @if (isJobRunning()) {
+            <progress aria-label="Processing stems" class="psalm-btn-spinner"></progress>
+            <span>Processing…</span>
+            } @else {
+            <span>{{
+              cachedLibraryMatch() && !forceReextract()
+              ? 'Open Cached Stems'
+              : forceReextract()
+              ? 'Force Re-Extract Stems'
+              : separationEngine() === 'None'
+              ? 'Import to Workbench'
+              : 'Import & Separate Stems'
+            }}</span>
+            }
+          </button>
+          @if (isJobRunning()) {
+          <button hlmBtn variant="destructive" size="sm" type="button" (click)="stage.cancelImportJob()">
+            Cancel
+          </button>
+          }
+        </div>
+      </div>
+      }
+
+      <!-- Missing Tool Inline Actionable Banner -->
+      @if (missingSelectedTool(); as missingTool) {
+      <div class="rounded-lg border border-amber-500/40 bg-amber-950/30 p-3 space-y-2 text-xs">
+        <div class="flex items-start justify-between gap-2">
+          <div>
+            <div class="font-semibold text-amber-200">{{ missingTool }} not detected</div>
+            <p class="text-[11px] text-zinc-300 mt-0.5">
+              Install it for {{ activePlatformGuide().label }} or point to its binary in the Setup Guide.
+            </p>
+          </div>
+          <button hlmBtn size="xs" type="button"
+            class="bg-amber-500 hover:bg-amber-400 text-zinc-950 font-semibold shrink-0"
+            (click)="openToolchainGuide()">
+            Open Setup Guide
+          </button>
+        </div>
+      </div>
+      }
+
+      <!-- Job Progress Telemetry -->
+      @if (stage.workbenchJob(); as job) {
+      <div class="rounded-lg border border-zinc-800 bg-zinc-950 p-3 space-y-2 text-xs">
+        <div class="flex items-center justify-between gap-2">
+          <span class="font-semibold text-zinc-200">{{ job.stage }}</span>
+          <span class="font-mono text-[11px]" [class]="job.status === 'Completed'
+                ? 'text-emerald-400'
+                : job.status === 'Failed'
+                  ? 'text-red-400'
+                  : 'text-amber-300'">
+            {{ job.progress_pct | number: '1.0-0' }}%
+          </span>
+        </div>
+        <div class="h-1.5 w-full rounded-full bg-zinc-800 overflow-hidden">
+          <div class="h-full transition-all duration-300"
+            [class]="job.status === 'Completed' ? 'bg-emerald-500' : job.status === 'Failed' ? 'bg-red-500' : 'bg-amber-500'"
+            [style.width.%]="job.progress_pct"></div>
+        </div>
+        <p class="text-[11px] text-zinc-400 break-words">{{ job.message }}</p>
+      </div>
+      }
+    </section>
+
+    <!-- Right Column: Interactive Waveform, Tempo & Arrangement Timeline -->
+    <section class="xl:col-span-8 rounded-xl border border-zinc-800 bg-zinc-900 p-4 space-y-4">
+      @if (workbenchError(); as err) {
+      <div class="rounded-lg border border-red-500/40 bg-red-950/40 px-3 py-2 text-xs text-red-200 flex flex-wrap items-center justify-between gap-2">
+        <span>{{ err }}</span>
+        @if (err.toLowerCase().includes('not found') || err.toLowerCase().includes('ffmpeg') || err.toLowerCase().includes('yt-dlp')) {
+        <button hlmBtn variant="outline" size="xs" type="button" (click)="openToolchainGuide()">
+          Open Platform Setup Guide →
+        </button>
+        }
+      </div>
+      }
+      <div
+        class="h-9 rounded-lg border px-3 flex items-center text-xs transition-colors overflow-hidden"
+        [class]="workbenchNotice()
+          ? 'border-emerald-500/40 bg-emerald-950/30 text-emerald-200'
+          : 'border-zinc-800/80 bg-zinc-950/50 text-zinc-500'"
+      >
+        <span class="truncate">{{ workbenchNotice() || 'Press Play Audition, then use the big Tap Tempo or Tap Beat 1 pads below.' }}</span>
+      </div>
+
+      @if (!manifest()) {
+      <div
+        class="h-[460px] rounded-xl border-2 border-dashed border-zinc-800 bg-zinc-950/50 flex flex-col items-center justify-center p-8 text-center gap-3">
+        @if (loadingBundle()) {
+        <div class="inline-flex items-center gap-2.5 rounded-lg border border-amber-500/30 bg-zinc-900/90 px-4 py-2.5 text-xs text-zinc-200">
+          <progress aria-label="Loading track stems" class="psalm-btn-spinner"></progress>
+          <span>Opening track stems &amp; reading timeline…</span>
+        </div>
+        } @else {
+        <div class="text-base font-semibold text-zinc-200">Waveform & Arrangement Studio Ready</div>
+        <p class="text-xs text-zinc-400 max-w-md">
+          Import a local MP3/WAV/FLAC file, fetch from YouTube, or open an existing Library folder on the left to
+          inspect its waveform, calibrate BPM & downbeat, and paint song sections.
+        </p>
+        <button hlmBtn variant="outline" size="sm" type="button" (click)="ingestTab.set('folder')">
+          Choose a Song from Library
+        </button>
+        }
+      </div>
+      } @else {
+      @let ed = manifest()!;
+
+      <!-- Audition & Waveform Transport Header -->
+      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 pb-3">
+        <div class="flex items-center gap-2 shrink-0">
+          <button hlmBtn size="xs" type="button" class="min-w-[6.75rem] justify-center whitespace-nowrap" [class]="snap().is_playing
+                ? 'bg-red-600 hover:bg-red-500 text-white font-semibold'
+                : 'bg-emerald-600 hover:bg-emerald-500 text-white font-semibold'" (click)="toggleAuditionPlay()">
+            {{ snap().is_playing ? 'Stop Audition' : 'Play Audition' }}
+          </button>
+          <button hlmBtn size="xs" type="button" class="min-w-[10.75rem] justify-center whitespace-nowrap tabular-nums" [variant]="snap().click_muted ? 'outline' : 'secondary'"
+            (click)="toggleAuditionClick()">
+            Click: {{ snap().click_muted ? 'OFF' : 'ON' }} ({{ snap().current_bpm | number: '1.0-1' }} BPM)
+          </button>
+          <div class="min-w-[10rem] text-center rounded border border-zinc-800 bg-zinc-950 px-2.5 py-1 font-mono text-xs text-zinc-200 whitespace-nowrap tabular-nums">
+            {{ formatTime(snap().current_position_sec) }} • Bar {{ snap().current_bar }}:{{ snap().current_beat }}
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <div class="inline-flex items-center rounded border border-zinc-800 bg-zinc-950 p-0.5 text-[11px]"
+            title="Zoom waveform (or Ctrl/Cmd + Wheel, or +/- keys)">
+            <button type="button" data-testid="waveform-zoom-out"
+              class="px-2 py-0.5 rounded text-zinc-300 hover:bg-zinc-800 disabled:opacity-40 cursor-pointer"
+              [disabled]="waveformZoom() <= 1" (click)="zoomOut()" title="Zoom Out (-)">
+              −
+            </button>
+            @for (z of zoomSteps; track z) {
+            <button type="button" class="px-1.5 py-0.5 rounded cursor-pointer tabular-nums"
+              [class]="waveformZoom() === z ? 'bg-zinc-800 text-amber-300 font-semibold' : 'text-zinc-400 hover:text-zinc-200'"
+              (click)="setZoom(z)">
+              {{ z }}x
+            </button>
+            }
+            <button type="button" data-testid="waveform-zoom-in"
+              class="px-2 py-0.5 rounded text-zinc-300 hover:bg-zinc-800 disabled:opacity-40 cursor-pointer"
+              [disabled]="waveformZoom() >= 32" (click)="zoomIn()" title="Zoom In (+)">
+              +
+            </button>
+          </div>
+          @if (waveformZoom() > 1) {
+          <button hlmBtn variant="ghost" size="xs" type="button" (click)="centerOnPlayhead()"
+            title="Center scroll view on current playhead">
+            ⌖ Center
+          </button>
+          }
+          <button hlmBtn variant="outline" size="xs" type="button" [disabled]="analyzingWaveform()"
+            [attr.aria-busy]="analyzingWaveform()" (click)="reanalyzeWaveform()">
+            @if (analyzingWaveform()) {
+            <progress aria-label="Scanning BPM, key, and waveform" class="psalm-btn-spinner"></progress>
+            <span>Scanning…</span>
+            } @else {
+            <span>Auto-Detect BPM &amp; Key</span>
+            }
+          </button>
+        </div>
+      </div>
+
+      <!-- Interactive Waveform + Section Bands + Bar Grid Canvas -->
+      <div class="rounded-xl border border-zinc-800 bg-zinc-950 p-3 space-y-2">
+        <div #waveformScroll data-testid="waveform-scroll" class="overflow-x-auto"
+          (wheel)="onWaveformWheel($event)">
+          <div
+            #waveformCanvas
+            data-testid="waveform-canvas"
+            class="relative h-48 select-none"
+            [class]="draggingTarget() === 'bar1' || draggingTarget() === 'boundary' ? 'cursor-ew-resize' : 'cursor-crosshair'"
+            style="touch-action: pan-y;"
+            [style.width.%]="waveformZoom() * 100"
+            (pointerdown)="onWaveformPointerDown($event)"
+          >
+            <!-- Section Header Bands & Draggable Boundaries -->
+            <div class="absolute inset-x-0 top-0 h-8 border-b border-zinc-800/80">
+              @for (band of sectionBands(); track band.id) {
+              <div
+                data-testid="waveform-section-band"
+                class="group/band absolute top-0.5 bottom-0.5 rounded border px-1.5 flex items-center justify-between gap-1 text-[10px] font-semibold truncate cursor-pointer transition-shadow"
+                [class]="band.colorClass + (band.selected ? ' ring-2 ring-cyan-400/80 z-10' : '')"
+                [style.left.%]="band.leftPct"
+                [style.width.%]="band.widthPct"
+                [title]="band.name + ' (' + formatTimePrecise(band.startSec) + ' – ' + formatTimePrecise(band.endSec) + ') — Click to jump, double-click to rename, drag edges to extend/shorten (Alt+drag to detach)'"
+                (pointerdown)="$event.stopPropagation()"
+                (click)="seekToSection(band.index); $event.stopPropagation()"
+                (dblclick)="startInlineBandRename(band.index); $event.stopPropagation()"
+              >
+                @if (editingBandIdx() === band.index) {
+                <input
+                  data-testid="waveform-section-rename-input"
+                  type="text"
+                  autofocus
+                  [ngModel]="editingBandName()"
+                  (ngModelChange)="editingBandName.set($event)"
+                  (pointerdown)="$event.stopPropagation()"
+                  (click)="$event.stopPropagation()"
+                  (keydown.enter)="commitInlineBandRename()"
+                  (keydown.escape)="cancelInlineBandRename()"
+                  (blur)="commitInlineBandRename()"
+                  class="w-full min-w-0 rounded bg-zinc-950/90 border border-cyan-400/70 px-1 py-0 text-[10px] font-semibold text-zinc-100 focus:outline-none"
+                />
+                } @else {
+                <span class="truncate min-w-0">{{ band.name }}</span>
+                <span class="flex items-center gap-0.5 shrink-0">
+                  @if (waveformZoom() >= 2) {
+                  <span class="text-[9px] font-mono opacity-75">{{ formatTimePrecise(band.startSec) }}</span>
+                  }
+                  <button
+                    type="button"
+                    data-testid="waveform-section-rename-btn"
+                    title="Rename section"
+                    class="opacity-0 group-hover/band:opacity-100 focus:opacity-100 px-0.5 rounded hover:bg-zinc-900/60 text-[10px] leading-none transition-opacity"
+                    [class.opacity-100]="band.selected"
+                    (pointerdown)="$event.stopPropagation()"
+                    (click)="startInlineBandRename(band.index); $event.stopPropagation()"
+                  >✎</button>
+                  @if (ed.sections.length > 1) {
+                  <button
+                    type="button"
+                    data-testid="waveform-section-delete-btn"
+                    title="Delete section"
+                    class="opacity-0 group-hover/band:opacity-100 focus:opacity-100 px-0.5 rounded hover:bg-rose-500/30 hover:text-rose-200 text-[11px] leading-none transition-opacity"
+                    [class.opacity-100]="band.selected"
+                    (pointerdown)="$event.stopPropagation()"
+                    (click)="removeSection(band.index); $event.stopPropagation()"
+                  >×</button>
+                  }
+                </span>
+                }
+              </div>
+              @if (band.boundaryLeftPct !== null) {
+              <div
+                data-testid="section-boundary-handle"
+                title="Drag to move section start (free decimal timeline, Alt+drag to leave a gap)"
+                class="absolute top-0 bottom-0 -translate-x-1/2 w-2.5 z-20 cursor-ew-resize flex items-center justify-center group"
+                [style.left.%]="band.boundaryLeftPct"
+                (pointerdown)="onBoundaryPointerDown($event, band.index, waveformCanvas, 'start')"
+                (click)="$event.stopPropagation()"
+              >
+                <div class="w-0.5 h-6 rounded-full bg-zinc-200/70 group-hover:bg-cyan-300 group-hover:w-1"></div>
+              </div>
+              }
+              @if (band.endHandleLeftPct !== null) {
+              <div
+                data-testid="section-end-handle"
+                title="Drag to extend or shorten section end (free decimal timeline)"
+                class="absolute top-0 bottom-0 -translate-x-1/2 w-2.5 z-20 cursor-ew-resize flex items-center justify-center group"
+                [style.left.%]="band.endHandleLeftPct"
+                (pointerdown)="onBoundaryPointerDown($event, band.index, waveformCanvas, 'end')"
+                (click)="$event.stopPropagation()"
+              >
+                <div class="w-0.5 h-6 rounded-full bg-amber-200/80 group-hover:bg-cyan-300 group-hover:w-1"></div>
+              </div>
+              }
+              }
+            </div>
+
+            <!-- Bar & Beat Grid Lines -->
+            <div class="absolute inset-x-0 top-8 bottom-0 pointer-events-none">
+              @for (bt of beatTicks(); track $index) {
+              <div class="absolute top-0 bottom-0 border-l border-dotted border-zinc-800/45"
+                [style.left.%]="bt.xPct"></div>
+              }
+              @for (tick of barTicks(); track tick.bar) {
+                @if (tick.bar !== 1) {
+                <div class="absolute top-0 bottom-0"
+                  [class]="tick.major ? 'border-l border-zinc-700/80' : 'border-l border-zinc-800/60'"
+                  [style.left.%]="tick.xPct">
+                  @if (tick.showLabel) {
+                  <span class="absolute bottom-0.5 left-1 text-[9px] font-mono"
+                    [class]="tick.major ? 'text-zinc-400' : 'text-zinc-600'">
+                    {{ tick.bar }}
+                  </span>
+                  }
+                </div>
+                }
+              }
+            </div>
+
+            <!-- SVG Waveform Envelope -->
+            <svg viewBox="0 0 1000 100" preserveAspectRatio="none"
+              class="absolute inset-x-0 top-8 bottom-0 w-full h-[calc(100%-2rem)] pointer-events-none">
+              <line x1="0" y1="50" x2="1000" y2="50" stroke="#27272a" stroke-width="0.7" />
+              @if (waveformPathD()) {
+              <path [attr.d]="waveformPathD()" stroke="#f59e0b" stroke-opacity="0.85" stroke-width="1.4" fill="none" />
+              }
+            </svg>
+
+            @if (analyzingWaveform() && !waveformPathD()) {
+            <div data-testid="waveform-scanning-notice"
+              class="absolute inset-x-0 top-8 bottom-0 flex items-center justify-center bg-zinc-950/75 backdrop-blur-[1px] pointer-events-none">
+              <div class="inline-flex items-center gap-2.5 rounded-lg border border-amber-500/30 bg-zinc-900/95 px-3.5 py-2 text-xs text-zinc-200 shadow-sm">
+                <progress aria-label="Building audio waveform" class="psalm-btn-spinner"></progress>
+                <span>Scanning audio stems &amp; building waveform…</span>
+              </div>
+            </div>
+            } @else if (analyzingWaveform()) {
+            <div data-testid="waveform-scanning-notice"
+              class="absolute inset-x-0 top-8 bottom-0 flex items-center justify-center bg-zinc-950/55 backdrop-blur-[1px] pointer-events-none">
+              <div class="inline-flex items-center gap-2.5 rounded-lg border border-amber-500/30 bg-zinc-900/95 px-3.5 py-2 text-xs text-zinc-200 shadow-sm">
+                <progress aria-label="Scanning audio stems" class="psalm-btn-spinner"></progress>
+                <span>Scanning stems for tempo, key, and Bar 1…</span>
+              </div>
+            </div>
+            }
+
+            <!-- Draggable Bar 1 (First Downbeat) Head & Vertical Rail -->
+            <div
+              class="absolute top-0 bottom-0 z-30 pointer-events-none"
+              [style.left.%]="bar1Pct()"
+            >
+              <!-- Wide invisible vertical grab strip along the downbeat line -->
+              <div
+                data-testid="bar1-drag-rail"
+                title="Drag left or right to position First Downbeat (Bar 1)"
+                class="pointer-events-auto absolute top-7 bottom-0 left-0 -translate-x-1/2 w-3.5 cursor-ew-resize flex justify-center"
+                (pointerdown)="onBar1PointerDown($event, waveformCanvas)"
+                (click)="$event.stopPropagation()"
+              >
+                <div class="w-0.5 h-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.75)]"></div>
+              </div>
+
+              <!-- Diamond pin head on the waveform boundary -->
+              <div
+                title="Drag First Downbeat (Bar 1)"
+                class="pointer-events-auto absolute top-7 left-0 -translate-x-1/2 -translate-y-1/2 w-3.5 h-3.5 rotate-45 rounded-[2px] bg-amber-400 hover:bg-amber-300 border border-amber-100 cursor-ew-resize shadow-[0_0_8px_rgba(251,191,36,0.8)]"
+                (pointerdown)="onBar1PointerDown($event, waveformCanvas)"
+                (click)="$event.stopPropagation()"
+              ></div>
+
+              <!-- Prominent First Downbeat Head Handle -->
+              <button
+                type="button"
+                data-testid="bar1-drag-handle"
+                title="Drag this First Downbeat head left or right to align Bar 1"
+                class="pointer-events-auto absolute bottom-0 flex items-center gap-1 rounded-t-md border-2 border-amber-100 bg-amber-400 hover:bg-amber-300 px-2 py-0.5 text-[10px] font-mono font-bold text-zinc-950 whitespace-nowrap cursor-ew-resize shadow-[0_0_12px_rgba(251,191,36,0.65)]"
+                [class]="bar1Pct() < 4 ? 'left-0' : bar1Pct() > 96 ? 'right-0' : 'left-0 -translate-x-1/2'"
+                (pointerdown)="onBar1PointerDown($event, waveformCanvas)"
+                (click)="$event.stopPropagation()"
+              >
+                <span>▼ Bar 1 ⇄</span>
+                @if (draggingTarget() === 'bar1') {
+                  <span>{{ ed.first_downbeat_sec.toFixed(2) }}s</span>
+                }
+              </button>
+            </div>
+
+            <!-- Draggable Playhead Cursor -->
+            <div
+              class="absolute top-0 bottom-0 w-0.5 bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.85)] z-20 pointer-events-none"
+              [style.left.%]="playheadPct()"
+            >
+              <div
+                data-testid="playhead-drag-handle"
+                title="Drag to scrub playhead cursor"
+                class="pointer-events-auto absolute top-0 left-1/2 -translate-x-1/2 w-3.5 h-3 rounded-b bg-cyan-400 hover:bg-cyan-300 cursor-ew-resize shadow"
+              ></div>
+            </div>
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center justify-between gap-2 text-[10px] text-zinc-500 px-0.5">
+          <span class="truncate">Click/drag waveform for cyan playhead • <kbd class="px-1 rounded bg-zinc-800 text-zinc-300">←/→</kbd> Beat • <kbd class="px-1 rounded bg-zinc-800 text-zinc-300">+/-</kbd> Zoom • <kbd class="px-1 rounded bg-zinc-800 text-zinc-300">S</kbd> Split @ Bar</span>
+          <span class="font-mono text-zinc-400 shrink-0 whitespace-nowrap tabular-nums">Bar 1 @ {{ ed.first_downbeat_sec | number: '1.2-2' }}s</span>
+        </div>
+
+        <!-- Ergonomic Precision Scrubbing & Rapid Section Annotation Strip -->
+        <div data-testid="rapid-section-bar"
+          class="rounded-lg border border-zinc-800/90 bg-zinc-900/70 p-2.5 space-y-2">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex flex-wrap items-center gap-1">
+              <span class="text-[11px] font-mono font-semibold text-cyan-300 mr-1 whitespace-nowrap">
+                Mark @ {{ formatTimePrecise(snap().current_position_sec) }}
+              </span>
+              <button hlmBtn variant="ghost" size="xs" type="button"
+                (click)="nudgePlayheadBeats(-(ed.time_signature[0] || 4))" title="Back 1 bar (Shift+Left)">
+                « Bar
+              </button>
+              <button hlmBtn variant="ghost" size="xs" type="button"
+                (click)="nudgePlayheadBeats(-1)" title="Back 1 beat (Left Arrow)">
+                ‹ Beat
+              </button>
+              <button hlmBtn variant="ghost" size="xs" type="button"
+                (click)="nudgePlayheadSec(-0.025)" title="Back 25ms (Alt+Left)">
+                -25ms
+              </button>
+              <button hlmBtn variant="ghost" size="xs" type="button"
+                (click)="nudgePlayheadSec(0.025)" title="Forward 25ms (Alt+Right)">
+                +25ms
+              </button>
+              <button hlmBtn variant="ghost" size="xs" type="button"
+                (click)="nudgePlayheadBeats(1)" title="Forward 1 beat (Right Arrow)">
+                Beat ›
+              </button>
+              <button hlmBtn variant="ghost" size="xs" type="button"
+                (click)="nudgePlayheadBeats(ed.time_signature[0] || 4)" title="Forward 1 bar (Shift+Right)">
+                Bar »
+              </button>
+            </div>
+
+            <div class="flex items-center gap-1.5">
+              <input #rapidSectionNameInput data-testid="rapid-section-name-input" type="text"
+                placeholder="Custom section name + Enter…"
+                class="w-44 rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs text-zinc-100 placeholder:text-zinc-500"
+                [ngModel]="rapidSectionName()"
+                (ngModelChange)="rapidSectionName.set($event)"
+                (keydown.enter)="markCustomSectionAtPlayhead()" />
+              <button hlmBtn variant="secondary" size="xs" type="button"
+                [disabled]="!rapidSectionName().trim()"
+                (click)="markCustomSectionAtPlayhead()">
+                Set @ {{ formatTimePrecise(snap().current_position_sec) }}
+              </button>
+              <span class="text-[10px] font-mono text-emerald-400 hidden sm:inline">✓ Synced to Stage</span>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-1">
+            <span class="text-[10px] uppercase tracking-wider text-zinc-400 mr-1">Rapid Mark:</span>
+            @for (preset of sectionPresets; track preset.name) {
+            <button hlmBtn variant="outline" size="xs" type="button"
+              [attr.data-testid]="'rapid-mark-' + preset.name.toLowerCase()"
+              (click)="markSectionAtPlayhead(preset.name, preset.color, preset.bars)"
+              [title]="'Start or rename section at ' + formatTimePrecise(snap().current_position_sec) + ' as ' + preset.name">
+              {{ preset.name }}
+            </button>
+            }
+          </div>
+
+          @if (activeEditingSection(); as activeSec) {
+          <div
+            data-testid="selected-section-controls"
+            class="flex flex-wrap items-center justify-between gap-2 pt-1.5 border-t border-zinc-800/80"
+          >
+            <div class="flex flex-wrap items-center gap-1.5">
+              <span class="text-[10px] uppercase tracking-wider text-cyan-300 font-semibold">
+                Selected #{{ activeEditingSectionIdx() + 1 }}
+              </span>
+              <input
+                data-testid="selected-section-rename-input"
+                type="text"
+                [ngModel]="activeSec.name"
+                (ngModelChange)="updateSection(activeEditingSectionIdx(), { name: $event })"
+                aria-label="Rename selected section"
+                class="w-32 rounded-md bg-zinc-950 border border-zinc-700 px-2 py-0.5 text-xs font-medium text-zinc-100 focus:outline-none focus:border-cyan-400"
+              />
+              <label class="inline-flex items-center gap-1 text-[10px] font-mono text-zinc-400">
+                <span>Start(s)</span>
+                <input
+                  data-testid="selected-section-start-sec-input"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  [ngModel]="sectionStartSec(ed, activeSec)"
+                  (ngModelChange)="updateSection(activeEditingSectionIdx(), { start_sec: +$event })"
+                  class="w-16 rounded border border-zinc-700 bg-zinc-950 px-1.5 py-0.5 text-[11px] font-mono text-zinc-100 tabular-nums focus:outline-none focus:border-cyan-400"
+                />
+              </label>
+              <label class="inline-flex items-center gap-1 text-[10px] font-mono text-zinc-400">
+                <span>End(s)</span>
+                <input
+                  data-testid="selected-section-end-sec-input"
+                  type="number"
+                  step="0.01"
+                  min="0.1"
+                  [ngModel]="sectionEndSec(ed, activeSec)"
+                  (ngModelChange)="updateSection(activeEditingSectionIdx(), { end_sec: +$event })"
+                  class="w-16 rounded border border-zinc-700 bg-zinc-950 px-1.5 py-0.5 text-[11px] font-mono text-zinc-100 tabular-nums focus:outline-none focus:border-cyan-400"
+                />
+              </label>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-1">
+              <button hlmBtn variant="outline" size="xs" type="button"
+                data-testid="selected-section-shrink-btn"
+                (click)="extendSectionSec(activeEditingSectionIdx(), -0.5)"
+                [disabled]="sectionEndSec(ed, activeSec) - sectionStartSec(ed, activeSec) <= 0.15"
+                title="Shorten section end by 0.50s">
+                -0.5s
+              </button>
+              <button hlmBtn variant="outline" size="xs" type="button"
+                data-testid="selected-section-extend-btn"
+                (click)="extendSectionSec(activeEditingSectionIdx(), 0.5)"
+                title="Extend section end by 0.50s">
+                +0.5s
+              </button>
+              <button hlmBtn variant="outline" size="xs" type="button"
+                data-testid="selected-section-delete-btn"
+                (click)="removeSection(activeEditingSectionIdx())"
+                [disabled]="ed.sections.length <= 1"
+                class="text-rose-300 border-rose-500/40 hover:bg-rose-500/20 disabled:opacity-40"
+                title="Delete selected section and merge span with neighbor">
+                Delete
+              </button>
+            </div>
+          </div>
+          }
+        </div>
+      </div>
+
+      <!-- Metadata, BPM & Downbeat Fine-Tuning -->
+      <div class="grid grid-cols-1 sm:grid-cols-6 gap-2.5 text-xs">
+        <div class="sm:col-span-2">
+          <label class="block text-zinc-400 mb-1">Song Title</label>
+          <input type="text" class="w-full rounded border border-zinc-700 bg-zinc-950 px-2.5 py-1.5 text-zinc-100"
+            [ngModel]="ed.title" (ngModelChange)="updateManifestField('title', $event)" />
+        </div>
+        <div class="sm:col-span-2">
+          <label class="block text-zinc-400 mb-1">Artist</label>
+          <input type="text" class="w-full rounded border border-zinc-700 bg-zinc-950 px-2.5 py-1.5 text-zinc-100"
+            [ngModel]="ed.artist" (ngModelChange)="updateManifestField('artist', $event)" />
+        </div>
+        <div>
+          <label class="block text-zinc-400 mb-1">Original Key</label>
+          <select class="w-full rounded border border-zinc-700 bg-zinc-950 px-2 py-1.5 font-mono text-amber-300"
+            [ngModel]="ed.original_key" (ngModelChange)="updateManifestField('original_key', $event)">
+            @for (k of songKeyOptions; track k) {
+            <option [value]="k">{{ k }}</option>
+            }
+          </select>
+          @if (analysis(); as det) {
+            @if (det.estimated_key) {
+              <p class="text-[10px] text-emerald-400 mt-1">
+                Detected {{ det.estimated_key }} ({{ (det.key_confidence ?? 0) * 100 | number: '1.0-0' }}%)
+              </p>
+            } @else {
+              <p class="text-[10px] text-amber-400 mt-1">
+                Key uncertain{{ det.key_candidates?.length ? ' (' + det.key_candidates!.join(' / ') + '?)' : '' }} — set manually
+              </p>
+            }
+          }
+        </div>
+        <div>
+          <label class="block text-zinc-400 mb-1">Beats / Bar</label>
+          <input type="number" min="1" max="16"
+            class="w-full rounded border border-zinc-700 bg-zinc-950 px-2 py-1.5 font-mono text-zinc-100"
+            [ngModel]="ed.time_signature[0]" (ngModelChange)="updateManifestField('ts_num', $event)" />
+        </div>
+
+        <!-- BPM Fine-Tune -->
+        <div
+          class="sm:col-span-3 rounded-lg border border-zinc-800 bg-zinc-950 p-2.5 flex flex-wrap items-center gap-1.5">
+          <span class="text-zinc-400">BPM</span>
+          <input type="number" step="0.5" min="30" max="260"
+            class="w-20 rounded border border-zinc-700 bg-zinc-900 px-2 py-1 font-mono text-zinc-100"
+            [ngModel]="ed.bpm" (ngModelChange)="updateManifestField('bpm', $event)" />
+          <button hlmBtn variant="ghost" size="xs" type="button" (click)="scaleBpm(0.5)"
+            title="Halve tempo (e.g. double-time to half-time)">×½</button>
+          <button hlmBtn variant="ghost" size="xs" type="button" (click)="scaleBpm(2)"
+            title="Double tempo">×2</button>
+          @if (analysis(); as det) {
+            @if (det.estimated_bpm !== ed.bpm) {
+            <button hlmBtn variant="outline" size="xs" type="button" class="text-amber-300 border-amber-500/40"
+              (click)="applyDetectedTiming()" title="Apply auto-detected BPM & sync metronome">
+              Sync {{ det.estimated_bpm }}
+            </button>
+            }
+          }
+          <div class="w-full flex flex-wrap items-center gap-1.5 pt-1 border-t border-zinc-800/80">
+            <span class="text-zinc-400">Click</span>
+            <select
+              data-testid="workbench-click-mode-select"
+              class="rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-zinc-100"
+              [ngModel]="ed.click_mode ?? 'AlwaysOn'"
+              (ngModelChange)="updateManifestField('click_mode', $event)">
+              <option value="AlwaysOn">Always On</option>
+              <option value="IntroOnly">Intro Only</option>
+              <option value="Off">Off</option>
+            </select>
+            @if ((ed.click_mode ?? 'AlwaysOn') === 'IntroOnly') {
+            <span class="text-[11px] text-amber-300">
+              Auto-mutes at Bar {{ introEndBar() }}
+            </span>
+            }
+          </div>
+        </div>
+
+        <!-- Downbeat Offset Fine-Tune -->
+        <div class="sm:col-span-3 rounded-lg border border-zinc-800 bg-zinc-950 p-2.5 space-y-2">
+          <div class="flex flex-wrap items-center gap-1.5">
+            <span class="text-zinc-400">Bar 1 (s)</span>
+            <input type="number" step="0.01" min="0"
+              class="w-20 rounded border border-zinc-700 bg-zinc-900 px-2 py-1 font-mono text-zinc-100"
+              [ngModel]="ed.first_downbeat_sec" (ngModelChange)="updateManifestField('first_downbeat_sec', $event)" />
+            <button hlmBtn variant="ghost" size="xs" type="button" (click)="nudgeDownbeat(-0.01)">-10ms</button>
+            <button hlmBtn variant="ghost" size="xs" type="button" (click)="nudgeDownbeat(0.01)">+10ms</button>
+          </div>
+          <div class="flex flex-wrap items-center gap-1">
+            <button hlmBtn variant="ghost" size="xs" type="button" (click)="shiftDownbeatBeats(-1)"
+              title="Shift Beat 1 earlier by 1 beat">-1 Beat</button>
+            <button hlmBtn variant="ghost" size="xs" type="button" (click)="shiftDownbeatBeats(1)"
+              title="Shift Beat 1 later by 1 beat">+1 Beat</button>
+            <button hlmBtn variant="outline" size="xs" type="button" (click)="setDownbeatToPlayhead()"
+              title="Set Bar 1 Beat 1 to the current playhead position">
+              Set = Playhead
+            </button>
+            <button hlmBtn variant="outline" size="xs" type="button" class="text-emerald-300 border-emerald-500/40"
+              [disabled]="aligningDownbeat() || !loadedDir()" (click)="alignBeat1ToCurrentBpm(false)"
+              title="Snap Beat 1 onto the song downbeat at current BPM">
+              {{ aligningDownbeat() ? 'Aligning...' : 'Align Beat 1' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Rapid Section Painter -->
+      <div class="space-y-2 border-t border-zinc-800 pt-3">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <span class="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+            Arrangement Sections
+          </span>
+          <div class="flex flex-wrap items-center gap-1">
+            @for (preset of sectionPresets; track preset.name) {
+            <button hlmBtn variant="outline" size="xs" type="button" (click)="appendPresetSection(preset)">
+              + {{ preset.name }}
+            </button>
+            }
+            <button hlmBtn variant="secondary" size="xs" type="button" (click)="splitSectionAtCurrentBar()">
+              Split @ Playhead
+            </button>
+          </div>
+        </div>
+
+        <div class="space-y-1.5 max-h-52 overflow-y-auto pr-1">
+          @for (sec of ed.sections; track sec.id; let idx = $index) {
+          <div
+            class="grid grid-cols-12 gap-1.5 items-center rounded border px-2 py-1.5 text-xs transition-colors"
+            [class]="selectedSectionIdx() === idx
+              ? 'border-cyan-400/70 bg-cyan-950/20'
+              : 'border-zinc-800 bg-zinc-950'"
+            (click)="selectedSectionIdx.set(idx)"
+          >
+            <div class="col-span-4 flex items-center gap-1.5">
+              <button type="button" (click)="seekToSection(idx); $event.stopPropagation()"
+                title="Jump playhead to this section start"
+                class="text-[10px] font-mono text-zinc-400 hover:text-cyan-300 px-1 rounded bg-zinc-900 border border-zinc-800 shrink-0 cursor-pointer">
+                #{{ idx + 1 }}
+              </button>
+              <input type="text" class="w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-zinc-100"
+                [ngModel]="sec.name" (ngModelChange)="updateSection(idx, { name: $event })" />
+            </div>
+            <div class="col-span-3 flex items-center gap-1">
+              <span class="text-zinc-500">Start(s)</span>
+              <input type="number" step="0.01" min="0"
+                class="w-full rounded border border-zinc-700 bg-zinc-900 px-1.5 py-1 font-mono text-zinc-100 tabular-nums"
+                [ngModel]="sectionStartSec(ed, sec)" (ngModelChange)="updateSection(idx, { start_sec: +$event })" />
+              <button type="button" (click)="setSectionStartToPlayhead(idx); $event.stopPropagation()"
+                title="Set Start (s) = Playhead Time"
+                class="px-1 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 text-[10px] text-cyan-300 cursor-pointer">
+                ↳
+              </button>
+            </div>
+            <div class="col-span-3 flex items-center gap-1">
+              <span class="text-zinc-500">End(s)</span>
+              <input type="number" step="0.01" min="0.1"
+                class="w-full rounded border border-zinc-700 bg-zinc-900 px-1.5 py-1 font-mono text-zinc-100 tabular-nums"
+                [ngModel]="sectionEndSec(ed, sec)" (ngModelChange)="updateSection(idx, { end_sec: +$event })" />
+              <button type="button" (click)="setSectionEndToPlayhead(idx); $event.stopPropagation()"
+                title="Set End (s) = Playhead Time"
+                class="px-1 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 text-[10px] text-cyan-300 cursor-pointer">
+                ↲
+              </button>
+            </div>
+            <select class="col-span-1 rounded border border-zinc-700 bg-zinc-900 px-1 py-1 text-[10px] text-zinc-200"
+              [ngModel]="sec.color ?? 'slate'" (ngModelChange)="updateSection(idx, { color: $event })">
+              <option value="slate">Gray</option>
+              <option value="sky">Sky</option>
+              <option value="emerald">Green</option>
+              <option value="amber">Amber</option>
+              <option value="violet">Violet</option>
+              <option value="cyan">Cyan</option>
+              <option value="rose">Rose</option>
+            </select>
+            <button hlmBtn variant="ghost" size="xs" type="button" class="col-span-1"
+              [disabled]="ed.sections.length <= 1" (click)="removeSection(idx); $event.stopPropagation()">
+              ×
+            </button>
+          </div>
+          }
+        </div>
+      </div>
+
+      <!-- Stem Audition Mixer & Roles -->
+      <div class="space-y-2 border-t border-zinc-800 pt-3">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <span class="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+              Stem Mixer & Roles ({{ editableStems().length }} Stems)
+            </span>
+            <span class="ml-2 text-[10px] text-zinc-500">
+              Uncheck to mute • S to solo • Transpose shifts pitch
+            </span>
+          </div>
+          <div class="flex flex-wrap items-center gap-1.5">
+            @if (hasVocalsStem()) {
+            <button hlmBtn variant="outline" size="xs" type="button" class="text-amber-300 border-amber-500/40"
+              (click)="applyInstrumentalOnly()">
+              Vocals Off
+            </button>
+            }
+            <button hlmBtn variant="ghost" size="xs" type="button" (click)="unmuteAllStems()">
+              All On
+            </button>
+            @if (soloedStems().length > 0) {
+            <button hlmBtn variant="secondary" size="xs" type="button" (click)="clearSolo()">
+              Clear Solo ({{ soloedStems().length }})
+            </button>
+            }
+          </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-1.5 max-h-48 overflow-y-auto pr-1">
+          @for (st of editableStems(); track st.key) {
+          <div
+            class="flex items-center justify-between gap-2 rounded border px-2.5 py-1.5 text-xs transition-colors"
+            [class]="isStemMuted(st.key)
+              ? 'border-zinc-800/70 bg-zinc-950/60 opacity-65'
+              : isStemSoloed(st.key)
+                ? 'border-amber-500/60 bg-amber-950/20'
+                : 'border-zinc-800 bg-zinc-950'">
+            <div class="flex items-center gap-2 min-w-0">
+              <label class="inline-flex items-center gap-2 cursor-pointer min-w-0"
+                title="Check to include stem in playback, uncheck to mute">
+                <input type="checkbox" class="accent-emerald-500 h-3.5 w-3.5 cursor-pointer"
+                  [checked]="!isStemMuted(st.key)"
+                  (change)="toggleStemActive(st.key, $any($event.target).checked)" />
+                <div class="min-w-0">
+                  <div class="font-semibold text-zinc-100 truncate capitalize">{{ st.key }}</div>
+                  <div class="text-[10px] font-mono text-zinc-500 truncate">{{ st.file }}</div>
+                </div>
+              </label>
+            </div>
+            <div class="flex items-center gap-2 shrink-0 text-[11px]">
+              <button type="button"
+                class="px-1.5 py-0.5 rounded border text-[10px] font-bold uppercase tracking-wide cursor-pointer"
+                [class]="isStemSoloed(st.key)
+                  ? 'border-amber-400 bg-amber-500 text-zinc-950'
+                  : 'border-zinc-700 bg-zinc-900 text-zinc-400 hover:text-zinc-200'"
+                (click)="toggleStemSolo(st.key)"
+                title="Solo this stem">
+                S
+              </button>
+              <input type="range" min="0" max="1.2" step="0.05"
+                class="w-14 accent-emerald-400 cursor-pointer"
+                [ngModel]="st.default_gain"
+                (ngModelChange)="setStemGain(st.key, $event)"
+                title="Stem level" />
+              <label class="inline-flex items-center gap-1 text-zinc-400 cursor-pointer"
+                title="Allow pitch shifting on transpose">
+                <input type="checkbox" [checked]="st.pitched"
+                  (change)="updateStemRole(st.key, { pitched: $any($event.target).checked })" />
+                <span>Key</span>
+              </label>
+              <label class="inline-flex items-center gap-1 text-amber-300/90 cursor-pointer"
+                title="Route as IEM guide/cue track">
+                <input type="checkbox" [checked]="st.is_cues"
+                  (change)="updateStemRole(st.key, { is_cues: $any($event.target).checked })" />
+                <span>IEM</span>
+              </label>
+            </div>
+          </div>
+          }
+        </div>
+      </div>
+
+      <!-- Publish Footer -->
+      <div class="flex flex-wrap items-center justify-between gap-2 border-t border-zinc-800 pt-3">
+        <div class="min-w-0 space-y-0.5">
+          <span class="block text-[11px] font-mono text-zinc-500 truncate max-w-md">{{ loadedDir() }}</span>
+          @if (ed.provenance; as prov) {
+          <div class="flex flex-wrap items-center gap-2 text-[10px] text-zinc-400">
+            <span>
+              Extracted: {{ prov.separation_engine }} ({{ prov.stem_preset }})
+              @if (prov.custom_model) { • {{ prov.custom_model }} }
+            </span>
+            @if (prov.original_source) {
+            <button type="button" class="text-amber-300 hover:underline cursor-pointer"
+              (click)="prepareReextractFromManifest()">
+              Re-Extract with Different Model
+            </button>
+            }
+          </div>
+          }
+        </div>
+        <div class="flex items-center gap-2">
+          <button hlmBtn variant="outline" size="sm" type="button" (click)="saveToLibrary(false)">
+            Save to Library
+          </button>
+          <button hlmBtn size="sm" type="button" class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold"
+            (click)="saveToLibrary(true)">
+            Save & Add to Setlist
+          </button>
+        </div>
+      </div>
+      }
+    </section>
+  </div>
+
+  <!-- Viewport-Fixed Floating Tap Dock: immune to any resizing controls above or below -->
+  @if (manifest(); as ed) {
+  <div
+    data-testid="floating-tap-dock"
+    class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-[min(94vw,44rem)] rounded-2xl border border-zinc-700/90 bg-zinc-900/95 backdrop-blur-md p-2.5 shadow-[0_12px_40px_rgba(0,0,0,0.7)]"
+  >
+    <div class="grid grid-cols-2 gap-2.5">
+      <button
+        type="button"
+        data-testid="tap-tempo-btn"
+        class="w-full h-16 shrink-0 rounded-xl border border-zinc-700 bg-zinc-800 hover:bg-zinc-700 active:brightness-95 px-4 flex flex-col items-center justify-center gap-0.5 text-zinc-100 cursor-pointer select-none whitespace-nowrap tabular-nums transition-colors shadow-sm"
+        (click)="tapTempo()"
+        title="Tap every beat to set BPM and auto-align Beat 1"
+      >
+        <span class="text-sm font-bold tracking-wide">
+          {{ tapCount() > 1 ? 'Tap Tempo (' + tapCount() + ')' : 'Tap Tempo' }}
+        </span>
+        <span class="text-[11px] font-mono text-zinc-300">
+          {{ ed.bpm | number: '1.0-1' }} BPM • tap each beat
+        </span>
+      </button>
+
+      <button
+        type="button"
+        data-testid="tap-beat1-btn"
+        class="w-full h-16 shrink-0 rounded-xl border px-4 flex flex-col items-center justify-center gap-0.5 cursor-pointer select-none whitespace-nowrap tabular-nums transition-colors shadow-sm active:brightness-95"
+        [class]="snap().is_playing
+          ? 'border-amber-400 bg-amber-500 hover:bg-amber-400 text-zinc-950'
+          : 'border-amber-500/40 bg-zinc-950 hover:bg-amber-500/15 text-amber-200'"
+        (click)="tapBeat1()"
+        title="Tap on Beat 1 each bar while auditioning to align Bar 1 and detect BPM"
+      >
+        <span class="text-sm font-bold tracking-wide">
+          {{ beat1TapCount() > 1 ? 'Tap Beat 1 (' + beat1TapCount() + ')' : 'Tap Beat 1' }}
+        </span>
+        <span class="text-[11px] font-mono" [class]="snap().is_playing ? 'text-zinc-900/90 font-semibold' : 'text-amber-300/80'">
+          Bar 1 @ {{ ed.first_downbeat_sec | number: '1.2-2' }}s • tap bar downbeat
+        </span>
+      </button>
+    </div>
+  </div>
+  }
+</div>

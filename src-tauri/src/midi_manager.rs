@@ -7,6 +7,7 @@ use psalm_audio_core::midi::{
     parse_raw_midi, MidiBinding, MidiMessageKind, MidiProfile, MidiTarget, MidiTriggerBehavior,
     RawMidiEvent,
 };
+use psalm_audio_core::pad_presets::list_all_pad_presets;
 use psalm_audio_core::{AudioCoreError, Result};
 use tauri::{AppHandle, Emitter};
 
@@ -74,6 +75,11 @@ impl MidiManager {
             let dev_name_cb = port_name.clone();
             let app_cb = app.clone();
             let engine_cb = Arc::clone(&engine);
+            let config_dir_cb = self
+                .config_path
+                .parent()
+                .map(|p| p.to_path_buf())
+                .unwrap_or_else(|| PathBuf::from("."));
 
             match midi_in.connect(
                 port,
@@ -90,7 +96,7 @@ impl MidiManager {
                         return;
                     }
 
-                    dispatch_midi_event(&event, &bindings, &engine_cb);
+                    dispatch_midi_event(&event, &bindings, &engine_cb, &config_dir_cb);
                 },
                 (),
             ) {
@@ -165,6 +171,11 @@ impl MidiManager {
         let dev_name_cb = port_name.clone();
         let app_cb = app.clone();
         let engine_cb = Arc::clone(&engine);
+        let config_dir_cb = self
+            .config_path
+            .parent()
+            .map(|p| p.to_path_buf())
+            .unwrap_or_else(|| PathBuf::from("."));
 
         let conn = midi_in
             .connect(
@@ -182,7 +193,7 @@ impl MidiManager {
                         return;
                     }
 
-                    dispatch_midi_event(&event, &bindings, &engine_cb);
+                    dispatch_midi_event(&event, &bindings, &engine_cb, &config_dir_cb);
                 },
                 (),
             )
@@ -274,10 +285,26 @@ impl MidiManager {
     }
 }
 
+fn step_pad_preset(engine: &Arc<AudioEngine>, config_dir: &PathBuf, delta: isize) -> Option<EngineCommand> {
+    let presets = list_all_pad_presets(config_dir);
+    if presets.is_empty() {
+        return None;
+    }
+    let cur_id = engine.snapshot().pad_preset_id;
+    let cur_idx = cur_id
+        .as_deref()
+        .and_then(|id| presets.iter().position(|p| p.id == id))
+        .unwrap_or(0);
+    let len = presets.len() as isize;
+    let next_idx = ((cur_idx as isize + delta).rem_euclid(len)) as usize;
+    Some(EngineCommand::SetPadPatch(presets[next_idx].to_patch_spec()))
+}
+
 fn dispatch_midi_event(
     event: &RawMidiEvent,
     bindings: &Arc<RwLock<Vec<MidiBinding>>>,
     engine: &Arc<AudioEngine>,
+    config_dir: &PathBuf,
 ) {
     let Ok(list) = bindings.read() else {
         return;
@@ -326,6 +353,18 @@ fn dispatch_midi_event(
             MidiTarget::KeyDown => Some(EngineCommand::AdjustKeyShift(-1)),
             MidiTarget::TempoUp => Some(EngineCommand::AdjustBpm(1.0)),
             MidiTarget::TempoDown => Some(EngineCommand::AdjustBpm(-1.0)),
+            MidiTarget::NextSong => Some(EngineCommand::NextSong),
+            MidiTarget::PrevSong => Some(EngineCommand::PrevSong),
+            MidiTarget::TogglePad => Some(EngineCommand::TogglePad),
+            MidiTarget::ToggleClick => Some(EngineCommand::ToggleClickMuted),
+            MidiTarget::PadGain => Some(EngineCommand::SetPadGain(norm * 1.2)),
+            MidiTarget::PadBrightness => Some(EngineCommand::SetPadBrightness(norm)),
+            MidiTarget::PadShimmer => Some(EngineCommand::SetPadShimmer(norm)),
+            MidiTarget::PadCrossfade => Some(EngineCommand::SetPadCrossfadeSec(0.5 + norm * 11.5)),
+            MidiTarget::PadPresetNext => step_pad_preset(engine, config_dir, 1),
+            MidiTarget::PadPresetPrev => step_pad_preset(engine, config_dir, -1),
+            MidiTarget::PadKeyNext => Some(EngineCommand::AdjustPadKey(1)),
+            MidiTarget::PadKeyPrev => Some(EngineCommand::AdjustPadKey(-1)),
             MidiTarget::MasterGain => Some(EngineCommand::SetMasterGain(norm * 1.2)),
             MidiTarget::ClickGain => Some(EngineCommand::SetClickGain(norm * 1.2)),
             MidiTarget::CuesGain => Some(EngineCommand::SetStemGain {
@@ -336,6 +375,33 @@ fn dispatch_midi_event(
                 name: name.clone(),
                 gain: norm * 1.2,
             }),
+            MidiTarget::TogglePercussionMode => {
+                use psalm_audio_core::percussion_patterns::PercussionMode;
+                let cur = engine.snapshot().percussion_mode;
+                let next = match cur {
+                    PercussionMode::Off => PercussionMode::Layer,
+                    PercussionMode::Layer => PercussionMode::PercussionOnly,
+                    PercussionMode::PercussionOnly => PercussionMode::Off,
+                };
+                Some(EngineCommand::SetPercussionMode(next))
+            }
+            MidiTarget::PercussionGain => Some(EngineCommand::SetPercussionGain(norm * 1.2)),
+            MidiTarget::PercussionIntensityUp => {
+                use psalm_audio_core::percussion_patterns::GrooveIntensity;
+                let next = match engine.snapshot().percussion_intensity {
+                    GrooveIntensity::Low => GrooveIntensity::Medium,
+                    GrooveIntensity::Medium | GrooveIntensity::High => GrooveIntensity::High,
+                };
+                Some(EngineCommand::SetPercussionIntensity(next))
+            }
+            MidiTarget::PercussionIntensityDown => {
+                use psalm_audio_core::percussion_patterns::GrooveIntensity;
+                let next = match engine.snapshot().percussion_intensity {
+                    GrooveIntensity::High => GrooveIntensity::Medium,
+                    GrooveIntensity::Medium | GrooveIntensity::Low => GrooveIntensity::Low,
+                };
+                Some(EngineCommand::SetPercussionIntensity(next))
+            }
         };
 
         if let Some(c) = cmd {

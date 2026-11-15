@@ -1,0 +1,712 @@
+<div class="space-y-4" data-testid="dedicated-loop-studio">
+  <!-- Top Studio Header & Independent Playable Transport -->
+  <section
+    hlmCard
+    class="bg-zinc-900/95 border-zinc-800 p-4 space-y-3"
+    data-testid="loop-studio-transport"
+  >
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div class="space-y-0.5">
+        <div class="flex items-center gap-2">
+          <h2 class="text-base font-bold text-zinc-100">Loop Studio & Beat Workbench</h2>
+          <span
+            hlmBadge
+            variant="outline"
+            class="border-violet-500/40 bg-violet-500/10 text-violet-300 text-[10px]"
+          >
+            {{ draft().bars_in_cycle }}-Bar {{ draft().steps_per_bar }}-Step Matrix
+          </span>
+          @if (snap().percussion_audition_playing) {
+            <span
+              hlmBadge
+              variant="outline"
+              class="border-emerald-400/60 bg-emerald-500/15 text-emerald-300 text-[10px] animate-pulse"
+            >
+              PLAYING {{ snap().percussion_audition_bpm | number: '1.0-0' }} BPM
+              @if (playingBarIndex(); as pBar) {
+                • BAR {{ pBar + 1 }}/{{ draft().bars_in_cycle }}
+              }
+            </span>
+          }
+        </div>
+        <p class="text-xs text-zinc-400">
+          Build multi-bar worship grooves with per-bar turnaround fills, audition independently at any BPM, then send live to Stage or export 9 isolated stems.
+        </p>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <button
+          hlmBtn
+          type="button"
+          data-testid="loop-studio-play-btn"
+          (click)="onToggleAuditionPlay()"
+          [class]="snap().percussion_audition_playing
+            ? 'bg-red-600 hover:bg-red-500 text-white font-semibold px-5 h-10 text-xs shadow-sm'
+            : 'bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-5 h-10 text-xs shadow-sm'"
+        >
+          {{ snap().percussion_audition_playing ? '■ STOP LOOP' : '▶ PLAY LOOP' }}
+        </button>
+
+        <button
+          hlmBtn
+          variant="outline"
+          type="button"
+          data-testid="loop-use-on-stage-btn"
+          (click)="onUseOnLiveStage()"
+          class="border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10 h-10 text-xs"
+        >
+          Use on Live Stage →
+        </button>
+      </div>
+    </div>
+
+    <!-- Transport Tempo / Cycle / Mix Row -->
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-3 pt-2 border-t border-zinc-800/80 items-end">
+      <!-- Audition BPM + Setlist Sync + Tap Tempo -->
+      <div class="md:col-span-3 space-y-1">
+        <div class="flex items-center justify-between gap-1 text-[10px] uppercase tracking-wider text-zinc-400">
+          <span>Loop Tempo</span>
+          <div class="flex items-center gap-1">
+            <button
+              type="button"
+              data-testid="loop-sync-setlist-bpm-btn"
+              (click)="onSyncToSetlistBpm()"
+              class="rounded border px-1.5 py-0.5 text-[10px] font-semibold cursor-pointer"
+              [class]="followSetlistBpm()
+                ? 'border-emerald-500/50 bg-emerald-500/15 text-emerald-300'
+                : 'border-amber-500/50 bg-amber-500/15 text-amber-300 hover:border-amber-400'"
+              title="Follow active setlist song tempo"
+            >
+              {{ followSetlistBpm() ? 'Setlist Sync (' + (snap().current_bpm | number: '1.0-0') + ')' : 'Sync Setlist (' + (snap().current_bpm | number: '1.0-0') + ')' }}
+            </button>
+            <button
+              type="button"
+              (click)="onTapTempo()"
+              class="rounded border border-zinc-700 bg-zinc-950 px-1.5 py-0.5 text-[10px] text-amber-300 hover:border-amber-400 cursor-pointer"
+            >
+              Tap
+            </button>
+          </div>
+        </div>
+        <div class="flex items-center gap-1">
+          <button
+            type="button"
+            (click)="onBpmChange(auditionBpm() - 5)"
+            class="rounded border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 cursor-pointer"
+          >
+            -5
+          </button>
+          <button
+            type="button"
+            (click)="onBpmChange(auditionBpm() - 1)"
+            class="rounded border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 cursor-pointer"
+          >
+            -1
+          </button>
+          <input
+            type="number"
+            min="40"
+            max="240"
+            data-testid="loop-studio-bpm-input"
+            aria-label="Loop Audition BPM"
+            class="w-16 rounded border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-center font-mono text-xs font-semibold text-zinc-100"
+            [ngModel]="auditionBpm()"
+            (ngModelChange)="onBpmChange($event)"
+          />
+          <button
+            type="button"
+            (click)="onBpmChange(auditionBpm() + 1)"
+            class="rounded border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 cursor-pointer"
+          >
+            +1
+          </button>
+          <button
+            type="button"
+            (click)="onBpmChange(auditionBpm() + 5)"
+            class="rounded border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 cursor-pointer"
+          >
+            +5
+          </button>
+          <div class="flex items-center gap-1.5 pl-1.5">
+            <span class="text-[11px] text-zinc-400">Click</span>
+            <hlm-switch
+              [checked]="auditionClick()"
+              (checkedChange)="onToggleAuditionClick($event)"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Bar Cycle Length (1 / 2 / 4 bars) -->
+      <div class="md:col-span-2 space-y-1">
+        <div class="text-[10px] uppercase tracking-wider text-zinc-400">Cycle Length</div>
+        <div class="grid grid-cols-3 gap-1">
+          @for (bars of [1, 2, 4]; track bars) {
+            <button
+              type="button"
+              [attr.data-testid]="'loop-cycle-bars-' + bars"
+              (click)="onSetBarsInCycle($any(bars))"
+              class="rounded border py-1.5 text-xs font-semibold cursor-pointer"
+              [class]="draft().bars_in_cycle === bars
+                ? 'border-violet-400 bg-violet-500/20 text-violet-200'
+                : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-zinc-200'"
+            >
+              {{ bars }} {{ bars === 1 ? 'Bar' : 'Bars' }}
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- Grid Subdivision -->
+      <div class="md:col-span-2 space-y-1">
+        <div class="text-[10px] uppercase tracking-wider text-zinc-400">Grid Meter</div>
+        <select
+          aria-label="Loop Grid Subdivision"
+          data-testid="loop-studio-grid-select"
+          class="w-full rounded border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-xs text-zinc-100"
+          [ngModel]="draft().steps_per_bar"
+          (ngModelChange)="onSetSubdivision(+$event)"
+        >
+          <option [ngValue]="16">4/4 • 16th Notes</option>
+          <option [ngValue]="12">6/8 / 12/8 • 12 Steps</option>
+          <option [ngValue]="24">12/8 Fine • 24 Steps</option>
+        </select>
+      </div>
+
+      <!-- Intensity Level Preview -->
+      <div class="md:col-span-2 space-y-1">
+        <div class="text-[10px] uppercase tracking-wider text-zinc-400">Section Intensity</div>
+        <div class="grid grid-cols-3 gap-1">
+          @for (lvl of ['Low', 'Medium', 'High']; track lvl) {
+            <button
+              type="button"
+              (click)="onSetIntensity($any(lvl))"
+              class="rounded border py-1.5 text-[11px] font-semibold cursor-pointer"
+              [class]="snap().percussion_intensity === lvl
+                ? 'border-amber-400 bg-amber-500/20 text-amber-200'
+                : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-zinc-200'"
+            >
+              {{ lvl === 'Medium' ? 'Med' : lvl }}
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- Swing + Room + Master Gain -->
+      <div class="md:col-span-3 grid grid-cols-3 gap-2">
+        <div class="space-y-1">
+          <div class="flex items-center justify-between text-[10px] text-zinc-400">
+            <span>Swing</span>
+            <span class="font-mono text-zinc-300">{{ draft().swing * 100 | number: '1.0-0' }}%</span>
+          </div>
+          <hlm-slider
+            [min]="0"
+            [max]="0.35"
+            [step]="0.01"
+            [value]="[draft().swing]"
+            (valueChange)="onSwingSlider($event)"
+          />
+        </div>
+        <div class="space-y-1">
+          <div class="flex items-center justify-between text-[10px] text-zinc-400">
+            <span>Room</span>
+            <span class="font-mono text-zinc-300">{{ snap().percussion_room_mix * 100 | number: '1.0-0' }}%</span>
+          </div>
+          <hlm-slider
+            [min]="0"
+            [max]="1"
+            [step]="0.01"
+            [value]="[snap().percussion_room_mix]"
+            (valueChange)="onRoomSlider($event)"
+          />
+        </div>
+        <div class="space-y-1">
+          <div class="flex items-center justify-between text-[10px] text-zinc-400">
+            <span>Gain</span>
+            <span class="font-mono text-zinc-300">{{ snap().percussion_gain * 100 | number: '1.0-0' }}%</span>
+          </div>
+          <hlm-slider
+            [min]="0"
+            [max]="1.5"
+            [step]="0.01"
+            [value]="[snap().percussion_gain]"
+            (valueChange)="onMasterGainSlider($event)"
+          />
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Sound Kit, Starter Style Presets & Custom Loop Library -->
+  <section class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+    <!-- Left Card: Sound Kit + Preset Cloning -->
+    <div hlmCard class="lg:col-span-6 bg-zinc-900 border-zinc-800 p-3.5 space-y-2.5">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        <div>
+          <div class="flex items-center justify-between text-[10px] uppercase tracking-wider text-zinc-400 mb-1">
+            <span>Sound Kit</span>
+            <button
+              type="button"
+              (click)="onGenerateStudioKits()"
+              [disabled]="kitBusy()"
+              class="text-[10px] font-semibold text-emerald-400 hover:text-emerald-300 cursor-pointer disabled:opacity-50"
+            >
+              {{ kitBusy() ? 'Generating…' : '+ Generate Studio WAV Kits' }}
+            </button>
+          </div>
+          <select
+            aria-label="Loop Studio Sound Kit"
+            class="w-full rounded border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-xs text-zinc-100"
+            [ngModel]="snap().percussion_kit_dir ?? ''"
+            (ngModelChange)="onSelectKitDir($event)"
+          >
+            <option value="">Built-In Hybrid Acoustic DSP</option>
+            @for (kit of stage.percussionKits(); track kit.id) {
+              <option [value]="kit.dir">{{ kit.name }} ({{ kit.sample_count }} WAVs)</option>
+            }
+          </select>
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between text-[10px] uppercase tracking-wider text-zinc-400 mb-1">
+            <span>Starter Style</span>
+            <button
+              type="button"
+              (click)="onNewBlankPattern($any(draft().bars_in_cycle))"
+              class="text-[10px] text-zinc-300 hover:text-white cursor-pointer"
+            >
+              + Blank {{ draft().bars_in_cycle }}B
+            </button>
+          </div>
+          <div class="flex gap-1.5">
+            <select
+              aria-label="Starter Style Preset"
+              class="flex-1 rounded border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-xs text-zinc-100"
+              [ngModel]="selectedStylePreset()"
+              (ngModelChange)="selectedStylePreset.set($event)"
+            >
+              @for (opt of styleOptions; track opt.value) {
+                <option [value]="opt.value">{{ opt.label }}</option>
+              }
+            </select>
+            <button
+              hlmBtn
+              variant="outline"
+              size="xs"
+              type="button"
+              data-testid="loop-clone-style-btn"
+              (click)="onLoadStylePreset(selectedStylePreset())"
+              class="text-[11px]"
+            >
+              Load Style
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Card: Loop Title, Saved Custom Loops & CRUD -->
+    <div hlmCard class="lg:col-span-6 bg-zinc-900 border-zinc-800 p-3.5 space-y-2">
+      <div class="flex flex-wrap items-center gap-2">
+        <div class="flex-1 min-w-44">
+          <div class="text-[10px] uppercase tracking-wider text-zinc-400 mb-1">Loop Title</div>
+          <input
+            type="text"
+            data-testid="loop-studio-title-input"
+            aria-label="Custom Loop Title"
+            placeholder="e.g. Sunday Makossa 4-Bar Build"
+            class="w-full rounded border border-zinc-700 bg-zinc-950 px-2.5 py-1.5 text-xs text-zinc-100"
+            [ngModel]="draft().name"
+            (ngModelChange)="onDraftNameChange($event)"
+          />
+        </div>
+        <div class="w-48">
+          <div class="text-[10px] uppercase tracking-wider text-zinc-400 mb-1">
+            Saved Loops ({{ stage.percussionLoops().length }})
+          </div>
+          <select
+            aria-label="Load Saved Loop"
+            data-testid="loop-studio-saved-select"
+            class="w-full rounded border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-xs text-zinc-100"
+            [ngModel]="draft().id"
+            (ngModelChange)="onLoadSavedLoop($event)"
+          >
+            <option value="">— Current Draft —</option>
+            @for (loop of stage.percussionLoops(); track loop.id) {
+              <option [value]="loop.id">
+                {{ loop.name }} ({{ loop.bars_in_cycle }}B • {{ loop.hits.length }} hits)
+              </option>
+            }
+          </select>
+        </div>
+        <div class="flex items-end gap-1.5 pt-4">
+          <button
+            hlmBtn
+            variant="default"
+            size="xs"
+            type="button"
+            data-testid="loop-studio-save-btn"
+            (click)="onSaveLoop()"
+            class="bg-emerald-600 hover:bg-emerald-500 text-white"
+          >
+            Save Loop
+          </button>
+          @if (stage.percussionLoops().length > 0) {
+            <button
+              hlmBtn
+              variant="outline"
+              size="xs"
+              type="button"
+              (click)="onDeleteLoop(draft().id)"
+              class="border-red-500/40 text-red-300 hover:bg-red-500/10"
+            >
+              Delete
+            </button>
+          }
+        </div>
+      </div>
+      @if (saveStatus()) {
+        <div class="text-[11px] text-emerald-300">{{ saveStatus() }}</div>
+      }
+    </div>
+  </section>
+
+  <!-- Per-Bar Tabs, Variation Actions & Paint Brush Bar -->
+  <section hlmCard class="bg-zinc-900 border-zinc-800 p-3.5 space-y-3" data-testid="loop-studio-sequencer">
+    <div class="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-zinc-800">
+      <!-- Bar Selector Tabs -->
+      <div class="flex flex-wrap items-center gap-1.5">
+        <span class="text-[10px] uppercase tracking-wider text-zinc-500 mr-1">Edit Bar:</span>
+        @for (barIdx of barIndices(); track barIdx) {
+          <button
+            type="button"
+            [attr.data-testid]="'loop-bar-tab-' + barIdx"
+            (click)="barScope.set($any(barIdx))"
+            class="rounded-md border px-3 py-1 text-xs font-semibold cursor-pointer flex items-center gap-1.5"
+            [class]="barScope() === barIdx
+              ? 'border-amber-400 bg-amber-500/20 text-amber-200'
+              : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-zinc-200'"
+          >
+            <span>Bar {{ barIdx + 1 }}</span>
+            @if (playingBarIndex() === barIdx) {
+              <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+            }
+          </button>
+        }
+        @if (draft().bars_in_cycle > 1) {
+          <button
+            type="button"
+            data-testid="loop-bar-tab-all"
+            (click)="barScope.set('all')"
+            class="rounded-md border px-3 py-1 text-xs font-semibold cursor-pointer"
+            [class]="barScope() === 'all'
+              ? 'border-cyan-400 bg-cyan-500/20 text-cyan-200'
+              : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-zinc-200'"
+          >
+            All {{ draft().bars_in_cycle }} Bars
+          </button>
+        }
+      </div>
+
+      <!-- Bar Variation Tools -->
+      <div class="flex flex-wrap items-center gap-1.5">
+        @if (draft().bars_in_cycle > 1) {
+          <button
+            type="button"
+            data-testid="loop-copy-bar1-all-btn"
+            (click)="onCopyBar1ToAll()"
+            class="rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-[11px] text-zinc-200 hover:border-amber-400 cursor-pointer"
+          >
+            Copy Bar 1 → All
+          </button>
+        }
+        @if (activeFocusedBar() > 0) {
+          <button
+            type="button"
+            data-testid="loop-copy-prev-bar-btn"
+            (click)="onCopyPrevBar()"
+            class="rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-[11px] text-zinc-200 hover:border-amber-400 cursor-pointer"
+          >
+            Copy Bar {{ activeFocusedBar() }} → {{ activeFocusedBar() + 1 }}
+          </button>
+        }
+        <button
+          type="button"
+          data-testid="loop-turnaround-fill-btn"
+          (click)="onAddTurnaroundFill()"
+          class="rounded border border-violet-500/40 bg-violet-500/10 px-2 py-1 text-[11px] font-semibold text-violet-200 hover:bg-violet-500/20 cursor-pointer"
+          title="Add a snare, talking drum & tambourine turnaround fill on the last beat of the selected bar"
+        >
+          + Turnaround Fill (Bar {{ activeFocusedBar() + 1 }})
+        </button>
+        <button
+          type="button"
+          data-testid="loop-clear-bar-btn"
+          (click)="onClearFocusedBar()"
+          class="rounded border border-zinc-800 bg-zinc-950 px-2 py-1 text-[11px] text-zinc-400 hover:text-red-300 hover:border-red-500/40 cursor-pointer"
+        >
+          Clear Bar {{ activeFocusedBar() + 1 }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Quick Groove Fillers + Paint Brush Controls -->
+    <div class="flex flex-wrap items-center justify-between gap-2 text-[11px]">
+      <div class="flex flex-wrap items-center gap-1.5">
+        <span class="text-zinc-500 uppercase text-[10px]">Quick Bar {{ activeFocusedBar() + 1 }} Layers:</span>
+        <button
+          type="button"
+          (click)="onQuickBarLayer('four-on-floor')"
+          class="rounded border border-zinc-800 bg-zinc-950 px-2 py-0.5 text-zinc-300 hover:border-emerald-400 cursor-pointer"
+        >
+          + 4-on-Floor Kick
+        </button>
+        <button
+          type="button"
+          (click)="onQuickBarLayer('backbeat-claps')"
+          class="rounded border border-zinc-800 bg-zinc-950 px-2 py-0.5 text-zinc-300 hover:border-emerald-400 cursor-pointer"
+        >
+          + 2 &amp; 4 Claps
+        </button>
+        <button
+          type="button"
+          (click)="onQuickBarLayer('16th-shaker')"
+          class="rounded border border-zinc-800 bg-zinc-950 px-2 py-0.5 text-zinc-300 hover:border-emerald-400 cursor-pointer"
+        >
+          + Groove Shaker
+        </button>
+        <button
+          type="button"
+          (click)="onQuickBarLayer('offbeat-tambourine')"
+          class="rounded border border-zinc-800 bg-zinc-950 px-2 py-0.5 text-zinc-300 hover:border-emerald-400 cursor-pointer"
+        >
+          + Offbeat Tamb
+        </button>
+      </div>
+
+      <!-- Paint Brush Settings -->
+      <div class="flex flex-wrap items-center gap-2.5">
+        <div class="flex items-center gap-1">
+          <span class="text-zinc-500">Gate:</span>
+          @for (lvl of ['Low', 'Medium', 'High']; track lvl) {
+            <button
+              type="button"
+              (click)="paintIntensity.set($any(lvl))"
+              class="rounded border px-1.5 py-0.5 text-[10px] cursor-pointer"
+              [class]="paintIntensity() === lvl
+                ? 'border-sky-400 bg-sky-500/20 text-sky-200'
+                : 'border-zinc-800 bg-zinc-950 text-zinc-400'"
+            >
+              {{ lvl === 'Low' ? 'All' : lvl === 'Medium' ? 'Med+' : 'High+' }}
+            </button>
+          }
+        </div>
+        <div class="flex items-center gap-1">
+          <span class="text-zinc-500">Hit:</span>
+          @for (v of ['Standard', 'Accent', 'Soft', 'Special']; track v) {
+            <button
+              type="button"
+              (click)="paintVariant.set($any(v))"
+              class="rounded border px-1.5 py-0.5 text-[10px] cursor-pointer"
+              [class]="paintVariant() === v
+                ? 'border-amber-400 bg-amber-500/20 text-amber-200'
+                : 'border-zinc-800 bg-zinc-950 text-zinc-400'"
+            >
+              {{ v }}
+            </button>
+          }
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="text-zinc-500">Vel:</span>
+          <span class="font-mono text-zinc-300 w-8">{{ paintVelocity() * 100 | number: '1.0-0' }}%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step Sequencer Grid -->
+    <div class="overflow-x-auto pb-1">
+      <div class="min-w-[780px] space-y-1">
+        <!-- Beat / Bar Header Row -->
+        <div class="grid grid-cols-[240px_1fr] items-center gap-2 text-[10px] text-zinc-500 pb-1">
+          <div class="flex items-center justify-between pr-2">
+            <span class="uppercase tracking-wider">Instrument / Mix ({{ totalHitsCount() }} hits)</span>
+            <button
+              type="button"
+              (click)="onResetMix()"
+              class="text-[10px] text-zinc-400 hover:text-zinc-200 cursor-pointer"
+            >
+              Reset Mix
+            </button>
+          </div>
+          <div
+            class="grid gap-1"
+            [style.grid-template-columns]="'repeat(' + visibleStepColumns().length + ', minmax(20px, 1fr))'"
+          >
+            @for (col of visibleStepColumns(); track col.globalStep) {
+              <div
+                class="text-center font-mono leading-tight"
+                [class]="snap().percussion_current_step === col.globalStep
+                  ? 'text-emerald-300 font-bold'
+                  : col.barStart
+                    ? 'text-amber-300 font-semibold'
+                    : col.beatStart
+                      ? 'text-zinc-200 font-semibold'
+                      : 'text-zinc-600'"
+              >
+                @if (col.barStart && barScope() === 'all') {
+                  B{{ col.bar + 1 }}
+                } @else if (col.beatStart) {
+                  {{ (col.localStep / (draft().steps_per_bar === 12 ? 3 : draft().steps_per_bar === 24 ? 6 : 4)) + 1 | number: '1.0-0' }}
+                } @else {
+                  ·
+                }
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Instrument Track Rows -->
+        @for (meta of instrumentMeta; track meta.instrument) {
+          @let ch = getChannelConfig(meta.instrument);
+          <div class="grid grid-cols-[240px_1fr] items-center gap-2 rounded bg-zinc-950/60 px-2 py-1 border border-zinc-800/70">
+            <!-- Instrument Header + Mute/Solo/Gain/Audition -->
+            <div class="flex items-center gap-1.5 pr-1">
+              <button
+                type="button"
+                (click)="onAuditionInstrument(meta.instrument)"
+                class="h-6 w-6 rounded border border-zinc-700 bg-zinc-900 text-[10px] text-emerald-300 hover:border-emerald-400 cursor-pointer shrink-0"
+                title="Audition {{ meta.label }}"
+              >
+                ▶
+              </button>
+              <div class="min-w-0 flex-1">
+                <div class="truncate text-[11px] font-medium" [class]="ch.enabled ? 'text-zinc-200' : 'text-zinc-500 line-through'">
+                  {{ meta.shortLabel }}
+                </div>
+                <hlm-slider
+                  [min]="0"
+                  [max]="1.5"
+                  [step]="0.01"
+                  [value]="[ch.gain]"
+                  (valueChange)="onChannelGainSlider(meta.instrument, $event)"
+                />
+              </div>
+              <button
+                type="button"
+                (click)="onToggleMute(meta.instrument)"
+                class="h-6 px-1.5 rounded border text-[10px] font-bold cursor-pointer shrink-0"
+                [class]="!ch.enabled
+                  ? 'border-red-500 bg-red-500/20 text-red-200'
+                  : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-zinc-200'"
+                title="Mute {{ meta.label }}"
+              >
+                M
+              </button>
+              <button
+                type="button"
+                (click)="onToggleSolo(meta.instrument)"
+                class="h-6 px-1.5 rounded border text-[10px] font-bold cursor-pointer shrink-0"
+                [class]="isSoloed(meta.instrument)
+                  ? 'border-amber-400 bg-amber-500/25 text-amber-200'
+                  : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-zinc-200'"
+                title="Solo {{ meta.label }}"
+              >
+                S
+              </button>
+            </div>
+
+            <!-- Step Pads -->
+            <div
+              class="grid gap-1"
+              [style.grid-template-columns]="'repeat(' + visibleStepColumns().length + ', minmax(20px, 1fr))'"
+            >
+              @for (col of visibleStepColumns(); track col.globalStep) {
+                @let hit = getHit(meta.instrument, col.globalStep);
+                <button
+                  type="button"
+                  [attr.data-testid]="'loop-pad-' + meta.instrument + '-' + col.globalStep"
+                  (click)="onToggleStep(meta.instrument, col.globalStep)"
+                  class="h-7 rounded transition-colors text-[9px] font-bold cursor-pointer flex items-center justify-center"
+                  [class]="stepPadClasses(hit, snap().percussion_current_step === col.globalStep, col.beatStart)"
+                  [title]="meta.label + ' • Bar ' + (col.bar + 1) + ' Step ' + (col.localStep + 1) + (hit ? ' (' + hit.variant + ', ' + hit.min_intensity + ')' : '')"
+                >
+                  @if (hit) {
+                    {{ hit.variant === 'Accent' ? 'A' : hit.variant === 'Special' ? '✦' : hit.variant === 'Soft' ? '·' : '•' }}
+                  }
+                </button>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- Export Multi-Stem Toggleable Song Bundle -->
+  <section hlmCard class="bg-zinc-900 border-zinc-800 p-4 space-y-2.5" data-testid="loop-studio-export">
+    <div class="flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <h3 class="text-sm font-semibold text-zinc-100">Export Loop as Toggleable 9-Stem Song Bundle</h3>
+        <p class="text-[11px] text-zinc-400">
+          Renders isolated kick, snare, hi-hat, hand-drums, tambourine, shaker, claps, clave, and bell WAV stems ready for Setlist Studio.
+        </p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end">
+      <div class="sm:col-span-5 space-y-1">
+        <label class="text-[10px] uppercase tracking-wider text-zinc-400" for="loop-export-title">
+          Song Bundle Title
+        </label>
+        <input
+          id="loop-export-title"
+          type="text"
+          class="w-full rounded border border-zinc-700 bg-zinc-950 px-2.5 py-1.5 text-xs text-zinc-100"
+          [ngModel]="exportTitle()"
+          (ngModelChange)="exportTitle.set($event)"
+        />
+      </div>
+      <div class="sm:col-span-2 space-y-1">
+        <label class="text-[10px] uppercase tracking-wider text-zinc-400" for="loop-export-bars">
+          Arrangement Bars
+        </label>
+        <select
+          id="loop-export-bars"
+          class="w-full rounded border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-xs text-zinc-100"
+          [ngModel]="exportBars()"
+          (ngModelChange)="exportBars.set(+$event)"
+        >
+          <option [ngValue]="8">8 Bars</option>
+          <option [ngValue]="16">16 Bars</option>
+          <option [ngValue]="32">32 Bars</option>
+          <option [ngValue]="64">64 Bars</option>
+        </select>
+      </div>
+      <div class="sm:col-span-2 flex items-center gap-2 pb-1.5">
+        <hlm-switch
+          [checked]="exportDynamic()"
+          (checkedChange)="exportDynamic.set($event)"
+        />
+        <span class="text-xs text-zinc-300">Dynamic Sections</span>
+      </div>
+      <div class="sm:col-span-3">
+        <button
+          hlmBtn
+          type="button"
+          data-testid="loop-studio-export-btn"
+          [disabled]="exportBusy()"
+          (click)="onExportSongBundle()"
+          class="w-full bg-amber-500 hover:bg-amber-400 text-zinc-950 font-semibold h-9 text-xs"
+        >
+          {{ exportBusy() ? 'Rendering 9 Stems…' : 'Export 9-Stem Bundle' }}
+        </button>
+      </div>
+    </div>
+
+    @if (exportStatus()) {
+      <div class="rounded border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
+        {{ exportStatus() }}
+      </div>
+    }
+  </section>
+</div>

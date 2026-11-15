@@ -30,14 +30,22 @@ Each specification defines requirements, exact data contracts, audio engine inva
 | [**SPEC-001**](./specs/SPEC-001-AUDIO-ENGINE.md) | Real-Time DSP Audio Engine & Time/Pitch Stretcher | Audio Core / DSP | P0 (Critical) | **Implemented** | Unit & Invariant Tests Passing |
 | [**SPEC-002**](./specs/SPEC-002-CLICK-AND-ROUTING.md) | Synthesized Metronome, Cue Bus & Audio Output Matrix | Routing / IEM | P0 (Critical) | **Implemented** | Sub-Sample Timing Verified |
 | [**SPEC-003**](./specs/SPEC-003-ARRANGEMENT-QUANTIZATION.md) | Section Markers, Quantized Jumping & Infinite Looping | Arrangement | P0 (Critical) | **Implemented** | Bar Math & Jump Tests Passing |
-| [**SPEC-004**](./specs/SPEC-004-SETLIST-FLOW.md) | Multi-Song Setlist Engine & Seamless Flow Modes | Live Flow | P1 (High) | **Specification Ready** | Manifest Schema Validated |
+| [**SPEC-004**](./specs/SPEC-004-SETLIST-FLOW.md) | Multi-Song Setlist Engine & Seamless Flow Modes | Live Flow | P1 (High) | **Implemented** | Transition, Preload & Reorder Tests Passing |
 | [**SPEC-005**](./specs/SPEC-005-MIDI-STAGE-CONTROL.md) | Hardware MIDI Stage Control, MIDI Learn & Live Lock | Hardware Control | P1 (High) | **Implemented (Core)** | Parser & Binding Tests Passing |
 | [**SPEC-006**](./specs/SPEC-006-LIBRARY-BUNDLE-SYSTEM.md) | Song Bundle Packaging, Manifest Schema & Stem Decoder | Library / IO | P1 (High) | **Implemented** | Resampler & Codec Tests Passing |
-| [**SPEC-007**](./specs/SPEC-007-CONTINUOUS-PADS.md) | Ambient Drone Pad Engine & Cross-Key Stage Glue | Sound Design | P2 (Medium) | **Planned** | Synthetic Drone Test Pending |
+| [**SPEC-007**](./specs/SPEC-007-CONTINUOUS-PADS.md) | Ambient Drone Pad Engine & Cross-Key Stage Glue | Sound Design | P1 (High) | **Implemented** | Pad Crossfade, Mute & Sustain Tests Passing |
 | [**SPEC-008**](./specs/SPEC-008-STAGE-UI-SPARTAN.md) | High-Contrast Stage UI, Tailwind v4 & Spartan-ng | Frontend UI | P1 (High) | **Implemented (Core)** | Angular Vitest Passing |
 | [**SPEC-009**](./specs/SPEC-009-MIDI-CLOCK-AUTOMATION.md) | Outbound MIDI Beat Clock & ProPresenter / Rig Sync | External Sync | P2 (Medium) | **Planned** | Clock Jitter Spec Defined |
 | [**SPEC-010**](./specs/SPEC-010-CLOUD-SYNC-OFFLINE.md) | Local-First Offline Caching & Non-Destructive Overrides | Cloud / Collab | P3 (Low) | **Backlog** | Model Spec Defined |
 | [**SPEC-011**](./specs/SPEC-011-PACKAGING-AND-DISTRIBUTION.md) | Turnkey Installers (.dmg / .exe / .deb) & CI/CD Release Pipeline | Distribution | P0 (Critical) | **Implemented** | GitHub Actions & Bundle Specs Verified |
+| [**SPEC-012**](./specs/SPEC-012-NATIVE-PICKER-AND-SONG-SETUP.md) | Native OS File Picker & In-App Song Bundle Builder | Library / UX | P1 (High) | **Implemented** | Discovery, Manifest & Editor Tests Passing |
+| [**SPEC-013**](./specs/SPEC-013-SONG-LIBRARY-AND-SETLIST-STUDIO.md) | Local Song Library & Rapid Setlist Creation Studio | Library / Studio | P1 (High) | **Implemented** | Library Scanner, Seek & Studio Tests |
+| [**SPEC-014**](./specs/SPEC-014-AUDIO-IMPORT-AND-STEM-WORKBENCH.md) | Optional Audio Import, Local Stem Separation & Arrangement Workbench | Import / Workbench | P1 (High) | **Implemented** | Waveform Peak, BPM & Toolchain Tests |
+| [**SPEC-015**](./specs/SPEC-015-AI-HARNESS-SETLIST-AUTOMATION.md) | Headless Workbench, Managed Setlists & AI Harness Integration (CLI + MCP + Skill) | AI / Automation | P1 (High) | **Implemented** | Plan, Search, Batch Ingest & MCP Tests Passed |
+| [**SPEC-016**](./specs/SPEC-016-TONIC-PAD-PLAYER.md) | Tonic Pad Player — Multi-Layer Synthesis, Voicing & Setlist Preset Lock | Sound Design / Live Flow | P1 (High) | **Implemented** | 4-Layer DSP, Minor Voicing, Shimmer & Preset Lock Passing |
+| [**SPEC-017**](./specs/SPEC-017-LIVE-STAGE-SETLIST-UX-AND-SECTIONS.md) | Live Stage Setlist Drag-and-Drop, Multi-Select Batch Editing & Service Sections | Live Flow / Stage UI | P1 (High) | **Implemented** | Rust Manifest/Batch/Loop + Angular CDK/Batch/Section Tests Passing |
+| [**SPEC-018**](./specs/SPEC-018-SONG-CROSSFADE-TRANSITIONS.md) | Real-Time Song-to-Song Overlap Crossfade Engine | Audio Core / Live Flow | P1 (High) | **Implemented** | Dual-Deck Equal-Power Crossfade & IEM Isolation Tests Passing |
+| [**SPEC-019**](./specs/SPEC-019-PERCUSSION-TRACK-GROOVE-ENGINE.md) | Built-In Multi-Style Percussion Track & Groove Engine | Sound Design / Audio Core | P1 (High) | **Implemented** | 9-Instrument DSP Synth, 12 Styles & Latency-Matched Sync Passing |
 
 ---
 
@@ -47,7 +55,7 @@ Each specification defines requirements, exact data contracts, audio engine inva
 flowchart TD
     M1["Milestone 1: Deterministic Real-Time Audio Core\n(Latency Compensation, Zero-Latency Bypass, Click Synth, Split L/R)"]
     M2["Milestone 2: Dynamic Arrangement & Live MIDI Control\n(Quantized Section Jumping, Infinite Loop, MIDI Learn, Footswitches)"]
-    M3["Milestone 3: Multi-Song Setlists & Continuous Stage Glue\n(Setlist Engine, Ambient Drone Pads, Seamless Track Transitions)"]
+    M3["Milestone 3: Multi-Song Setlists, Ambient Pads & Song Setup\n(Setlist Flow, Continuous Drone Pads, Native Picker & Manifest Builder)"]
     M4["Milestone 4: Multi-Channel Bus Matrix & External Stage Automation\n(4-16 Channel Routing, MIDI Beat Clock Out, ProPresenter Automation)"]
     M5["Milestone 5: Team Cloud Sync & Multi-Platform Packaging\n(Local-First Cache, Mobile Stage App, Non-Destructive Sharing)"]
 
@@ -58,8 +66,8 @@ flowchart TD
 
     style M1 fill:#10b981,stroke:#059669,stroke-width:2px,color:#ffffff
     style M2 fill:#10b981,stroke:#059669,stroke-width:2px,color:#ffffff
-    style M3 fill:#3b82f6,stroke:#2563eb,stroke-width:2px,color:#ffffff
-    style M4 fill:#6366f1,stroke:#4f46e5,stroke-width:2px,color:#ffffff
+    style M3 fill:#10b981,stroke:#059669,stroke-width:2px,color:#ffffff
+    style M4 fill:#3b82f6,stroke:#2563eb,stroke-width:2px,color:#ffffff
     style M5 fill:#64748b,stroke:#475569,stroke-width:2px,color:#ffffff
 ```
 
@@ -75,15 +83,17 @@ flowchart TD
 - Flexible MIDI Learn architecture supporting Note, Control Change (CC), and Program Change (PC).
 - Spartan-ng (`vega`) high-contrast stage view for low-light platform visibility.
 
-### Milestone 3: Multi-Song Setlists & Continuous Stage Glue (Active)
-- Setlist sequence model supporting song order, duplicate songs with transpositions, and tempo overrides.
-- Ambient drone pad synthesis across all 12 musical keys with cross-key 4-second equal-power crossfades.
-- Playback flow modes: Auto-Advance, Auto-Pause (wait for leader count-in), and Manual Trigger.
+### Milestone 3: Multi-Song Setlists, Ambient Pads & Song Setup (Done)
+- Setlist sequence model supporting song order, duplicate songs with transpositions, and tempo overrides (`SPEC-004`).
+- Non-blocking background preloader thread caching decoded stems across song transitions (`SPEC-004`).
+- Continuous ambient drone pad synthesizer with equal-power 4-second cross-key crossfades and stopped-transport sustain (`SPEC-007`).
+- Native OS folder & file dialogs via `tauri-plugin-dialog` and in-app draft manifest builder / stem classifier (`SPEC-012`).
+- Playback flow modes: Auto-Advance, Auto-Pause (wait for leader count-in), and Manual Trigger (`SPEC-004`).
 
-### Milestone 4: Multi-Channel Matrix & External Automation (Next)
+### Milestone 4: Multi-Channel Matrix & External Automation (Next / Active)
 - 4, 8, and 16-channel physical routing matrix (e.g., Output 1-2 Tracks, 3 Click, 4 Cues, 5 Bass, 6 Drums, 7-8 Synths).
 - Outbound MIDI Beat Clock transmission over USB/DIN to sync hardware delay pedals (Strymon, Eventide).
-- MIDI cue automation track sending Program Changes to amp modelers (Kemper, Helix, Quad Cortex) and lyric projection software.
+- MIDI cue automation track sending Program Changes to amp modelers (Kemper, Helix, Quad Cortex) and lyric projection software (`SPEC-009`).
 
 ### Milestone 5: Collaborative Cloud Library & Ecosystem (Future)
 - Church team song synchronization with local-first offline caching.

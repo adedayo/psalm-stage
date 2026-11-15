@@ -2,6 +2,8 @@
 name = "psalm-audio-core"
 version = "0.1.0"
 edition = "2024"
+license = "BSD-3-Clause"
+repository = "https://github.com/adedayo/psalm-stage"
 description = "Real-time multitrack playback, pitch/tempo stretch, click synthesis, and MIDI control engine for Psalm Stage"
 
 [dependencies]

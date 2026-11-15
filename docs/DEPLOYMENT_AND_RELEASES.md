@@ -54,16 +54,14 @@ When a version tag is pushed (e.g. `v0.1.0`), the automated GitHub Actions workf
    - Creates a draft or public GitHub Release tagged with `vX.Y.Z`.
    - Uploads all binary installer assets with SHA-256 checksums.
 
-### Triggering a Release
-To cut a new production release for end users:
-```bash
-# 1. Update version in package.json and src-tauri/tauri.conf.json
-npm version 0.2.0
+### Triggering a Release (Automatic via Release Please)
+Psalm Stage uses [`.github/workflows/release-please.yml`](../.github/workflows/release-please.yml) and `release-please-config.json` for **automatic release tagging**:
 
-# 2. Push tag to GitHub
-git push origin --tags
-```
-GitHub Actions handles the rest. In ~8 minutes, all `.dmg` and `.exe` installers will be live on your project's GitHub Releases page.
+1. Push or merge [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `feat!:`) to `main`.
+2. **Release Please** opens (or updates) an automated **Release PR** that bumps the version across `package.json`, `src-tauri/tauri.conf.json`, all workspace `Cargo.toml` crates, `src/app/services/psalm-stage.service.ts`, and `CHANGELOG.md`.
+3. Merging that Release PR automatically creates the `vX.Y.Z` GitHub tag & Release and invokes [`.github/workflows/release.yml`](../.github/workflows/release.yml) to build and upload all macOS, Windows, and Linux installers.
+
+*(For manual/hotfix tagging, pushing an annotated tag like `git tag v0.1.0 && git push origin v0.1.0` also triggers `.github/workflows/release.yml` directly.)*
 
 ---
 
@@ -116,7 +114,7 @@ To deliver a completely seamless experience on macOS Sequoia without paying Appl
 #### Method 1: The Automated 1-Line Installer Script (Most Seamless)
 Non-developer users can simply copy and paste this single command into Terminal (Spotlight $\to$ Terminal):
 ```bash
-curl -fsSL https://raw.githubusercontent.com/dayo-a/psalm-stage/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/adedayo/psalm-stage/main/install.sh | bash
 ```
 **What this does automatically in 5 seconds:**
 1. Detects Apple Silicon (`aarch64`) vs Intel (`x86_64`).

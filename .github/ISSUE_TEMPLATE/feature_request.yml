@@ -1,0 +1,19 @@
+name: Feature Request
+description: Suggest an improvement for worship stage performance, workbench, or hardware control
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Worship / Stage Workflow Need
+      description: What real-world Sunday morning or rehearsal scenario does this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed Solution
+      description: Describe how you'd like this to behave in Psalm Stage.
+    validations:
+      required: true

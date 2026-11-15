@@ -1,9 +1,17 @@
+pub mod analysis;
 pub mod click;
 pub mod engine;
+pub mod library;
 pub mod loader;
 pub mod manifest;
 pub mod midi;
+pub mod pad;
+pub mod pad_presets;
+pub mod percussion;
+pub mod percussion_kit;
+pub mod percussion_patterns;
 pub mod routing;
+pub mod session;
 pub mod stretcher;
 
 use thiserror::Error;

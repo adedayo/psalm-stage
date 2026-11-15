@@ -39,10 +39,10 @@
   <!-- Top Stage Transport Bar -->
   <header class="border-b border-zinc-800 bg-zinc-900/90 backdrop-blur px-4 py-3 flex flex-wrap items-center justify-between gap-3">
     <div class="flex items-center gap-3">
-      <div class="flex items-center gap-2">
-        <span class="inline-flex h-8 w-8 items-center justify-center rounded-md bg-amber-500 text-zinc-950 font-bold text-sm">
-          PS
-        </span>
+      <div class="flex items-center gap-2.5">
+        <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-950 border border-zinc-800 shadow-sm p-0.5 overflow-hidden group">
+          <img src="psalm-stage-logo.svg" alt="Psalm Stage" class="h-full w-full object-contain transform group-hover:scale-105 transition-transform" />
+        </div>
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-sm font-semibold tracking-wide text-zinc-100">PSALM STAGE</h1>
@@ -54,6 +54,57 @@
         </div>
       </div>
     </div>
+
+    <!-- Workspace Mode Switcher -->
+    <nav
+      aria-label="Workspace Mode"
+      class="inline-flex items-center rounded-lg border border-zinc-800 bg-zinc-950 p-1 text-xs"
+    >
+      <button
+        type="button"
+        class="px-3 py-1.5 rounded-md transition-colors cursor-pointer"
+        [class]="workspaceMode() === 'stage'
+          ? 'bg-emerald-600 text-white font-semibold shadow-sm'
+          : 'text-zinc-400 hover:text-zinc-100'"
+        (click)="setWorkspaceMode('stage')"
+      >
+        Live Stage
+      </button>
+      <button
+        type="button"
+        class="px-3 py-1.5 rounded-md transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+        [disabled]="liveLock()"
+        [class]="workspaceMode() === 'studio'
+          ? 'bg-amber-500 text-zinc-950 font-semibold shadow-sm'
+          : 'text-zinc-400 hover:text-zinc-100'"
+        (click)="setWorkspaceMode('studio')"
+      >
+        Setlist Studio
+      </button>
+      <button
+        type="button"
+        data-testid="workspace-tab-loops"
+        class="px-3 py-1.5 rounded-md transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+        [disabled]="liveLock()"
+        [class]="workspaceMode() === 'loops'
+          ? 'bg-violet-500 text-white font-semibold shadow-sm'
+          : 'text-zinc-400 hover:text-zinc-100'"
+        (click)="setWorkspaceMode('loops')"
+      >
+        Loop Studio
+      </button>
+      <button
+        type="button"
+        class="px-3 py-1.5 rounded-md transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+        [disabled]="liveLock()"
+        [class]="workspaceMode() === 'workbench'
+          ? 'bg-cyan-500 text-zinc-950 font-semibold shadow-sm'
+          : 'text-zinc-400 hover:text-zinc-100'"
+        (click)="setWorkspaceMode('workbench')"
+      >
+        Import Workbench
+      </button>
+    </nav>
 
     <!-- Center Transport + Beat Pulse -->
     <div class="flex items-center gap-3">
@@ -81,7 +132,11 @@
             {{ snap().current_bar }} : {{ snap().current_beat }}
           </div>
         </div>
-        <div class="flex items-center gap-1.5">
+        <div
+          class="flex items-center gap-1.5 transition-opacity"
+          [class.opacity-35]="snap().click_muted"
+          [title]="snap().click_muted ? 'Metronome audio is muted (Visual beat only)' : 'Metronome click active'"
+        >
           @for (beat of beatDots(); track beat) {
             <span
               class="h-3 w-3 rounded-full transition-colors"
@@ -92,6 +147,62 @@
           }
         </div>
       </div>
+
+      @if (snap().song_crossfade_progress !== null) {
+        <div
+          data-testid="live-crossfade-pill"
+          class="rounded-md border border-cyan-500/60 bg-cyan-500/15 px-2.5 py-1 flex items-center gap-2 text-xs text-cyan-200 animate-pulse"
+        >
+          <span class="font-semibold">XFADE</span>
+          <span class="truncate max-w-[160px]">
+            {{ snap().crossfading_from_title || 'Prev' }} → {{ snap().song_title }}
+          </span>
+          <span class="font-mono text-[10px]">
+            {{ (snap().song_crossfade_progress ?? 0) * 100 | number: '1.0-0' }}%
+          </span>
+        </div>
+      }
+
+      <!-- Direct Live-Safe Metronome Mute Toggle + Per-Song Click Mode -->
+      <div class="flex items-center gap-1.5">
+        <button
+          hlmBtn
+          type="button"
+          size="sm"
+          data-testid="live-metronome-toggle"
+          [attr.aria-pressed]="snap().click_muted"
+          title="Mute or unmute live metronome click in IEMs (Shortcut: M)"
+          (click)="onClickMute(!snap().click_muted)"
+          [class]="snap().click_muted
+            ? 'border border-red-500/60 bg-red-950/60 text-red-200 hover:bg-red-900/70 font-semibold h-11 px-3 text-xs'
+            : 'border border-amber-500/50 bg-amber-500/15 text-amber-200 hover:bg-amber-500/25 font-semibold h-11 px-3 text-xs'"
+        >
+          {{ snap().click_muted ? 'Click: MUTED (M)' : 'Click: ON (M)' }}
+        </button>
+
+        <div class="flex flex-col justify-center rounded-md border border-zinc-800 bg-zinc-950 px-2 h-11">
+          <div class="text-[9px] uppercase tracking-wider text-zinc-500 leading-none mb-0.5">
+            @if (snap().click_mode === 'IntroOnly') {
+              Auto-off Bar {{ snap().click_intro_end_bar }}
+            } @else {
+              Click Mode
+            }
+          </div>
+          <select
+            data-testid="stage-click-mode-select"
+            aria-label="Metronome Click Mode"
+            class="bg-transparent text-xs font-medium text-zinc-200 focus:outline-none disabled:opacity-50"
+            [disabled]="liveLock()"
+            [ngModel]="snap().click_mode"
+            (ngModelChange)="onClickModeChange($event)"
+            title="Per-song metronome setting: Always On, Intro Only (auto-mutes after Intro), or Off"
+          >
+            <option value="AlwaysOn" class="bg-zinc-950">Always On</option>
+            <option value="IntroOnly" class="bg-zinc-950">Intro Only</option>
+            <option value="Off" class="bg-zinc-950">Off</option>
+          </select>
+        </div>
+      </div>
     </div>
 
     <!-- Key, BPM, MIDI Assign & Live Lock -->
@@ -99,11 +210,17 @@
       <!-- Key Control -->
       <div class="flex items-center gap-1 rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1">
         <button hlmBtn variant="ghost" size="sm" type="button" [disabled]="liveLock() && !stage.midiAssignMode()" (click)="onKeyAdjust(-1)">-</button>
-        <div class="px-2 text-center min-w-[54px]">
+        <div
+          class="px-2 text-center min-w-[54px]"
+          [title]="snap().original_key === 'Unknown' ? 'Key could not be detected automatically — open Setup or Workbench to set' : 'Song Key'"
+        >
           <div class="text-[10px] text-zinc-500 uppercase">Key</div>
-          <div class="text-sm font-semibold text-amber-300">
+          <div
+            class="text-sm font-semibold"
+            [class]="snap().original_key === 'Unknown' ? 'text-zinc-400' : 'text-amber-300'"
+          >
             {{ snap().current_key }}
-            @if (snap().key_shift_semitones !== 0) {
+            @if (snap().key_shift_semitones !== 0 && snap().original_key !== 'Unknown') {
               <span class="text-[10px] text-zinc-400">({{ snap().key_shift_semitones > 0 ? '+' : '' }}{{ snap().key_shift_semitones }})</span>
             }
           </div>
@@ -114,9 +231,23 @@
       <!-- BPM Control -->
       <div class="flex items-center gap-1 rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1">
         <button hlmBtn variant="ghost" size="sm" type="button" [disabled]="liveLock() && !stage.midiAssignMode()" (click)="onBpmAdjust(-1)">-</button>
-        <div class="px-2 text-center min-w-[56px]">
+        <div class="px-2 text-center min-w-[60px]">
           <div class="text-[10px] text-zinc-500 uppercase">BPM</div>
-          <div class="text-sm font-mono font-semibold">{{ snap().current_bpm | number: '1.0-1' }}</div>
+          @if (!liveLock()) {
+            <input
+              type="number"
+              min="30"
+              max="260"
+              step="0.5"
+              aria-label="Global Tempo BPM"
+              data-testid="header-bpm-input"
+              class="w-16 rounded bg-zinc-900/90 border border-zinc-800 px-1 py-0.5 text-center text-sm font-mono font-semibold text-zinc-100 focus:outline-none focus:ring-1 focus:ring-amber-500/50"
+              [ngModel]="snap().current_bpm"
+              (ngModelChange)="onHeaderBpmChange($event)"
+            />
+          } @else {
+            <div data-testid="header-bpm-display" class="text-sm font-mono font-semibold">{{ snap().current_bpm | number: '1.0-1' }}</div>
+          }
         </div>
         <button hlmBtn variant="ghost" size="sm" type="button" [disabled]="liveLock() && !stage.midiAssignMode()" (click)="onBpmAdjust(1)">+</button>
       </div>
@@ -132,9 +263,21 @@
         {{ stage.midiAssignMode() ? 'MIDI Assign: ON' : 'MIDI Assign' }}
       </button>
 
-      <div class="flex items-center gap-2 rounded-md border border-zinc-800 bg-zinc-950 px-2.5 py-1.5">
+      <div
+        class="flex items-center gap-2 rounded-md border px-2.5 py-1.5"
+        [class]="liveLock() ? 'border-emerald-500/40 bg-emerald-500/10' : 'border-zinc-800 bg-zinc-950'"
+        [title]="liveLock() ? 'Live Lock active — editing locked and screen kept awake (screensaver / lock screen prevented)' : 'Lock editing controls for live performance and keep screen awake'"
+      >
         <span class="text-xs text-zinc-300">Live Lock</span>
-        <hlm-switch [checked]="liveLock()" (checkedChange)="liveLock.set($event)" />
+        @if (liveLock()) {
+          <span
+            data-testid="live-wake-lock-badge"
+            class="rounded bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-300"
+          >
+            Screen Awake
+          </span>
+        }
+        <hlm-switch [checked]="liveLock()" (checkedChange)="onLiveLockChange($event)" />
       </div>
     </div>
   </header>
@@ -158,52 +301,172 @@
     </div>
   }
 
-  <!-- Main Workspace -->
-  <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 p-4">
-    <!-- Left / Center: One-Tap Section Grid & Song Loader -->
-    <section class="lg:col-span-8 flex flex-col gap-4">
-      <div hlmCard class="bg-zinc-900 border-zinc-800">
-        <div hlmCardHeader class="flex flex-row flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 hlmCardTitle class="text-base">Dynamic Song Sections</h2>
-            <p hlmCardDescription class="text-xs text-zinc-400">
-              Tap any section (or press keys 1–9) to queue a quantized transition.
-            </p>
-          </div>
+  @if (stage.newlyDetectedOutput(); as newDev) {
+    <div
+      data-testid="audio-hotplug-banner"
+      class="bg-emerald-500/15 border-b border-emerald-500/35 px-4 py-2 flex flex-wrap items-center justify-between gap-2 text-xs text-emerald-100"
+    >
+      <div class="flex items-center gap-2">
+        <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span>
+          <strong>New Audio Output Detected:</strong> {{ newDev.name }}
+          <span class="font-mono text-emerald-300/90">({{ newDev.max_channels }} ch • {{ newDev.default_sample_rate }} Hz)</span>
+        </span>
+      </div>
+      <div class="flex items-center gap-2">
+        <button
+          hlmBtn
+          size="sm"
+          type="button"
+          data-testid="use-detected-output-btn"
+          [disabled]="liveLock()"
+          (click)="stage.useDetectedOutput(newDev.name)"
+        >
+          Use Output Now
+        </button>
+        <button
+          hlmBtn
+          variant="ghost"
+          size="sm"
+          type="button"
+          (click)="stage.dismissDetectedOutput()"
+        >
+          Dismiss
+        </button>
+      </div>
+    </div>
+  }
 
-          <div class="flex flex-wrap items-center gap-2">
-            <!-- Jump Quantize Mode -->
-            <div class="inline-flex rounded-md border border-zinc-800 bg-zinc-950 p-0.5 text-xs">
-              <button
-                type="button"
-                class="px-2.5 py-1 rounded-sm transition-colors"
-                [class]="snap().quantize_mode === 'NextBar' ? 'bg-zinc-800 text-zinc-100 font-medium' : 'text-zinc-400 hover:text-zinc-200'"
-                (click)="onQuantizeChange('NextBar')"
-              >
-                Next Bar
-              </button>
-              <button
-                type="button"
-                class="px-2.5 py-1 rounded-sm transition-colors"
-                [class]="snap().quantize_mode === 'EndOfSection' ? 'bg-zinc-800 text-zinc-100 font-medium' : 'text-zinc-400 hover:text-zinc-200'"
-                (click)="onQuantizeChange('EndOfSection')"
-              >
-                End of Section
-              </button>
+  <!-- Main Workspace -->
+  @if (workspaceMode() === 'studio') {
+    <main class="flex-1 p-4">
+      <app-setlist-studio
+        (openInWorkbench)="openSongDirInWorkbench($event)"
+        (newInWorkbench)="setWorkspaceMode('workbench')"
+        (goLive)="setWorkspaceMode('stage')"
+      />
+    </main>
+  } @else if (workspaceMode() === 'loops') {
+    <main class="flex-1 p-4">
+      <app-loop-studio (goToStage)="setWorkspaceMode('stage')" />
+    </main>
+  } @else if (workspaceMode() === 'workbench') {
+    <main class="flex-1 p-4">
+      <app-import-workbench
+        [targetFolder]="workbenchTargetDir()"
+        (goToStudio)="setWorkspaceMode('studio')"
+      />
+    </main>
+  } @else {
+  <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 p-4 items-start">
+    <!-- Top-Left Primary Performance Deck: Dynamic Song Sections & Live Racks -->
+    <section class="lg:col-span-7 flex flex-col gap-4" data-testid="live-stage-primary-col">
+      <div hlmCard class="bg-zinc-900 border-zinc-800" data-testid="dynamic-sections-card">
+        <div hlmCardHeader class="flex flex-col gap-3 pb-3">
+          <div class="flex flex-row flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 hlmCardTitle class="text-base">Dynamic Song Sections</h2>
+              <p hlmCardDescription class="text-xs text-zinc-400">
+                Tap any section (or press keys 1–9) to queue a quantized transition.
+              </p>
             </div>
 
-            <!-- Loop Toggle -->
-            <button
-              hlmBtn
-              type="button"
-              size="sm"
-              (click)="onToggleLoop()"
-              [class]="snap().loop_enabled
-                ? 'bg-amber-500 text-zinc-950 hover:bg-amber-400 font-semibold'
-                : 'border border-zinc-700 bg-zinc-950 text-zinc-200 hover:bg-zinc-800'"
-            >
-              {{ snap().loop_enabled ? 'LOOPING SECTION (L)' : 'Loop Section (L)' }}
-            </button>
+            <div class="flex flex-wrap items-center gap-2">
+              <!-- Jump Quantize Mode -->
+              <div class="inline-flex rounded-md border border-zinc-800 bg-zinc-950 p-0.5 text-xs">
+                <button
+                  type="button"
+                  [disabled]="liveLock()"
+                  class="px-2.5 py-1 rounded-sm transition-colors disabled:opacity-50"
+                  [class]="snap().quantize_mode === 'NextBar' ? 'bg-zinc-800 text-zinc-100 font-medium' : 'text-zinc-400 hover:text-zinc-200'"
+                  (click)="onQuantizeChange('NextBar')"
+                >
+                  Next Bar
+                </button>
+                <button
+                  type="button"
+                  [disabled]="liveLock()"
+                  class="px-2.5 py-1 rounded-sm transition-colors disabled:opacity-50"
+                  [class]="snap().quantize_mode === 'EndOfSection' ? 'bg-zinc-800 text-zinc-100 font-medium' : 'text-zinc-400 hover:text-zinc-200'"
+                  (click)="onQuantizeChange('EndOfSection')"
+                >
+                  End of Section
+                </button>
+              </div>
+
+              <!-- Loop Section Toggle -->
+              <button
+                hlmBtn
+                type="button"
+                size="sm"
+                (click)="onToggleLoop()"
+                [class]="snap().loop_enabled
+                  ? 'bg-amber-500 text-zinc-950 hover:bg-amber-400 font-semibold'
+                  : 'border border-zinc-700 bg-zinc-950 text-zinc-200 hover:bg-zinc-800'"
+              >
+                {{ snap().loop_enabled ? 'LOOPING SECTION (L)' : 'Loop Section (L)' }}
+              </button>
+
+              <!-- Continue Track / Percussion Until Stopped Toggle -->
+              <button
+                hlmBtn
+                type="button"
+                size="sm"
+                data-testid="live-continue-track-toggle"
+                (click)="onToggleContinueTrack()"
+                [attr.aria-pressed]="snap().continue_until_stopped"
+                title="Keep backing track & percussion looping seamlessly until stopped or manually changed"
+                [class]="snap().continue_until_stopped
+                  ? 'bg-emerald-500 text-zinc-950 hover:bg-emerald-400 font-semibold'
+                  : 'border border-zinc-700 bg-zinc-950 text-zinc-200 hover:bg-zinc-800'"
+              >
+                {{ snap().continue_until_stopped ? 'CONTINUING UNTIL STOP' : 'Continue Track' }}
+              </button>
+            </div>
+          </div>
+
+          @let curSongTitle = activeSetlistItem()?.title || snap().song_title || 'No Song Loaded';
+          <div
+            data-testid="dynamic-sections-now-playing"
+            class="rounded-lg border px-3 py-2 flex flex-wrap items-center justify-between gap-2"
+            [class]="snap().is_playing
+              ? 'border-emerald-500/50 bg-emerald-500/10'
+              : 'border-zinc-800 bg-zinc-950/80'"
+          >
+            <div class="flex items-center gap-2.5 min-w-0 flex-1">
+              <span
+                class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider shrink-0"
+                [class]="snap().is_playing
+                  ? 'bg-emerald-500 text-zinc-950'
+                  : 'bg-zinc-800 text-zinc-300'"
+              >
+                @if (snap().is_playing) {
+                  <span class="h-1.5 w-1.5 rounded-full bg-zinc-950 animate-pulse"></span>
+                  Playing
+                } @else {
+                  Loaded
+                }
+              </span>
+              <span
+                data-testid="dynamic-sections-song-title"
+                class="text-base sm:text-lg font-bold text-zinc-100 break-words leading-snug"
+              >
+                {{ curSongTitle }}
+              </span>
+            </div>
+            <div class="flex flex-wrap items-center gap-1.5 text-[11px] font-mono text-zinc-300 shrink-0">
+              @if (snap().active_setlist_slot !== null && snap().setlist_items.length > 0) {
+                <span class="rounded border border-zinc-700 bg-zinc-900 px-1.5 py-0.5 text-zinc-200">
+                  Song {{ (snap().active_setlist_slot ?? 0) + 1 }} / {{ snap().setlist_items.length }}
+                </span>
+              }
+              <span class="rounded border border-zinc-800 bg-zinc-900 px-1.5 py-0.5 text-amber-300">
+                Key {{ snap().current_key }}
+              </span>
+              <span class="rounded border border-zinc-800 bg-zinc-900 px-1.5 py-0.5">
+                {{ snap().current_bpm | number: '1.0-1' }} BPM
+              </span>
+            </div>
           </div>
         </div>
 
@@ -223,7 +486,25 @@
                     : 'border-zinc-800 bg-zinc-950/80 hover:border-zinc-700 hover:bg-zinc-900'"
               >
                 <div class="flex items-center justify-between gap-2 mb-2">
-                  <span class="text-xs font-mono text-zinc-500">#{{ idx + 1 }}</span>
+                  <div class="flex items-center gap-1.5">
+                    <span
+                      class="h-2 w-2 rounded-full"
+                      [class]="section.color === 'emerald'
+                        ? 'bg-emerald-400'
+                        : section.color === 'sky'
+                          ? 'bg-sky-400'
+                          : section.color === 'amber'
+                            ? 'bg-amber-400'
+                            : section.color === 'violet'
+                              ? 'bg-violet-400'
+                              : section.color === 'cyan'
+                                ? 'bg-cyan-400'
+                                : section.color === 'rose'
+                                  ? 'bg-rose-400'
+                                  : 'bg-zinc-400'"
+                    ></span>
+                    <span class="text-xs font-mono text-zinc-500">#{{ idx + 1 }}</span>
+                  </div>
                   @if (isArmed) {
                     <span hlmBadge class="bg-amber-500 text-zinc-950 text-[10px]">ARMED</span>
                   } @else if (isActive && snap().is_playing) {
@@ -234,8 +515,12 @@
                 </div>
 
                 <div class="text-lg font-semibold text-zinc-100">{{ section.name }}</div>
-                <div class="text-xs text-zinc-400 mt-0.5 font-mono">
-                  Bars {{ section.start_bar }}–{{ section.end_bar - 1 }}
+                <div class="text-xs text-zinc-400 mt-0.5 font-mono tabular-nums">
+                  @if (section.start_sec != null && section.end_sec != null) {
+                    {{ formatTimePrecise(section.start_sec) }}–{{ formatTimePrecise(section.end_sec) }}
+                  } @else {
+                    Bars {{ section.start_bar }}–{{ section.end_bar - 1 }}
+                  }
                 </div>
 
                 @if (stage.midiAssignMode()) {
@@ -249,105 +534,807 @@
         </div>
       </div>
 
-      <!-- Song Bundle Loader -->
+      <!-- Feature #3 & #16: Tonic Pad Player (Continuous 4-Layer Ambient Drone Pad) -->
       <div hlmCard class="bg-zinc-900 border-zinc-800">
-        <div hlmCardHeader class="flex flex-row items-center justify-between gap-2">
-          <div>
-            <h2 hlmCardTitle class="text-sm">Load Song Bundle Folder</h2>
+        <div hlmCardHeader class="flex flex-row items-center justify-between gap-2 pb-2">
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-center gap-1.5">
+              <h2 hlmCardTitle class="text-sm">Tonic Pad Player</h2>
+              <span
+                class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                [class]="snap().pad_enabled && !snap().pad_muted
+                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                  : 'bg-zinc-800 text-zinc-400'"
+              >
+                {{ snap().pad_enabled ? (snap().pad_muted ? 'MUTED' : 'SUSTAINING ' + snap().pad_key) : 'OFF' }}
+              </span>
+              <span
+                class="inline-flex items-center rounded border border-zinc-700 bg-zinc-950 px-1.5 py-0.5 text-[10px] font-medium text-amber-300 truncate max-w-[140px]"
+                [title]="snap().pad_preset_name"
+              >
+                {{ snap().pad_preset_name }}
+              </span>
+            </div>
             <p hlmCardDescription class="text-xs text-zinc-400">
-              Folder containing <code class="text-zinc-300">manifest.json</code> and stem files (WAV / OGG / MP3 / FLAC).
+              4-layer FOH stage glue • {{ snap().pad_crossfade_sec | number: '1.1-1' }}s crossfade (P)
             </p>
           </div>
-          <button hlmBtn variant="outline" size="sm" type="button" [disabled]="liveLock()" (click)="loadDemo()">
-            Load Built-in Demo
-          </button>
-        </div>
-        <div hlmCardContent class="flex gap-2">
-          <input
-            type="text"
-            class="flex-1 rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40"
-            placeholder="/path/to/WorshipLibrary/songs/way-maker"
-            [ngModel]="customFolderPath()"
-            (ngModelChange)="customFolderPath.set($event)"
-            [disabled]="liveLock()"
-          />
-          <button hlmBtn size="sm" type="button" [disabled]="liveLock() || !customFolderPath().trim()" (click)="loadFolder()">
-            Load Folder
-          </button>
-        </div>
-      </div>
-    </section>
-
-    <!-- Right Panel: Audio Output Routing, Stem Mixer & MIDI Hardware -->
-    <aside class="lg:col-span-4 flex flex-col gap-4">
-      <!-- Audio Routing Card -->
-      <div hlmCard class="bg-zinc-900 border-zinc-800">
-        <div hlmCardHeader class="flex flex-row items-center justify-between">
-          <div>
-            <h2 hlmCardTitle class="text-sm">Audio Output Interface</h2>
-            <p hlmCardDescription class="text-xs text-zinc-400">
-              {{ snap().device_name }} • {{ snap().device_sample_rate }} Hz • {{ snap().device_channels }} ch
-            </p>
+          <div class="flex items-center gap-1.5 shrink-0">
+            <button
+              hlmBtn
+              size="sm"
+              type="button"
+              (click)="onTogglePad()"
+              [class]="snap().pad_enabled
+                ? 'bg-amber-500 text-zinc-950 hover:bg-amber-400 font-semibold'
+                : 'border border-zinc-700 bg-zinc-950 text-zinc-200 hover:bg-zinc-800'"
+            >
+              {{ snap().pad_enabled ? 'PAD ON' : 'PAD OFF' }}
+            </button>
+            <button
+              hlmBtn
+              size="xs"
+              type="button"
+              [variant]="snap().pad_muted ? 'destructive' : 'secondary'"
+              (click)="onPadMute(!snap().pad_muted)"
+            >
+              {{ snap().pad_muted ? 'Muted' : 'Mute' }}
+            </button>
           </div>
-          <button hlmBtn variant="ghost" size="sm" type="button" (click)="stage.refreshHardware()">
-            Refresh
-          </button>
         </div>
 
         <div hlmCardContent class="space-y-3">
-          <div>
-            <div class="flex items-center justify-between mb-1">
-              <label class="block text-[11px] uppercase tracking-wider text-zinc-400">Output Device</label>
-              <span class="text-[10px] text-zinc-500">Universal USB / CoreAudio / Dante</span>
+          <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div class="flex items-center gap-2">
+              <span class="text-zinc-300">Auto-Follow Song Key</span>
+              <hlm-switch
+                [checked]="snap().pad_follow_song_key"
+                (checkedChange)="onTogglePadFollow($event)"
+              />
             </div>
-            <select
-              class="w-full rounded-md border border-zinc-800 bg-zinc-950 px-2.5 py-2 text-xs text-zinc-100"
-              [disabled]="liveLock()"
-              (change)="onDeviceSelect($event)"
+            <div class="flex items-center gap-1.5">
+              <button
+                type="button"
+                data-testid="pad-minor-toggle"
+                (click)="onTogglePadMinor()"
+                class="rounded border px-2 py-0.5 text-[11px] font-semibold cursor-pointer transition-colors"
+                [class]="snap().pad_is_minor
+                  ? 'border-violet-400 bg-violet-500/20 text-violet-200'
+                  : 'border-zinc-700 bg-zinc-950 text-zinc-400 hover:text-zinc-200'"
+                title="Toggle True Minor voicing for minor-key songs"
+              >
+                {{ snap().pad_is_minor ? 'Minor' : 'Major / 5th' }}
+              </button>
+              @if (activeSetlistItem(); as activeItem) {
+                <button
+                  type="button"
+                  data-testid="pad-slot-lock-btn"
+                  (click)="onToggleActiveSlotPadLock()"
+                  class="rounded border px-2 py-0.5 text-[11px] font-semibold cursor-pointer transition-colors"
+                  [class]="activeItem.pad_lock
+                    ? 'border-amber-400 bg-amber-500/20 text-amber-200'
+                    : 'border-zinc-700 bg-zinc-950 text-zinc-400 hover:text-zinc-200'"
+                  [title]="activeItem.pad_lock ? 'Preset Locked to this setlist slot (click to switch to Pass-Through)' : 'Pass-Through mode (click to lock current pad preset & tone to this slot)'"
+                >
+                  {{ activeItem.pad_lock ? 'Locked' : 'Pass-Thru' }}
+                </button>
+              }
+              <button
+                hlmBtn
+                variant="outline"
+                size="xs"
+                type="button"
+                data-testid="open-tonic-studio-btn"
+                (click)="openPadStudio()"
+              >
+                Tonic Studio
+              </button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-6 gap-1">
+            @for (key of chromaticKeys; track key) {
+              <button
+                type="button"
+                (click)="onSelectPadKey(key)"
+                class="rounded border py-1 text-xs font-semibold transition-colors cursor-pointer"
+                [class]="isPadKeyRootSelected(key)
+                  ? 'border-amber-400 bg-amber-500/20 text-amber-300'
+                  : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-zinc-100'"
+              >
+                {{ snap().pad_is_minor ? key + 'm' : key }}
+              </button>
+            }
+          </div>
+
+          <div class="space-y-1">
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-zinc-300">Pad Level (FOH Music Bus)</span>
+              <div class="flex items-center gap-2">
+                @if (stage.midiAssignMode()) {
+                  <button
+                    hlmBtn
+                    variant="outline"
+                    size="xs"
+                    type="button"
+                    (click)="mapMidiFader({ type: 'PadGain' }, 'Ambient Pad Volume', 'Continuous')"
+                  >
+                    {{ stage.bindingLabelFor({ type: 'PadGain' }) ?? 'Map Knob' }}
+                  </button>
+                }
+                <span class="font-mono text-zinc-400 w-10 text-right">{{ snap().pad_gain * 100 | number: '1.0-0' }}%</span>
+              </div>
+            </div>
+            <hlm-slider
+              [min]="0"
+              [max]="1.2"
+              [step]="0.01"
+              [value]="[snap().pad_gain]"
+              (valueChange)="onPadSlider($event)"
+            />
+          </div>
+
+          <div class="grid grid-cols-2 gap-3 pt-1">
+            <div class="space-y-1">
+              <div class="flex items-center justify-between text-[11px]">
+                <span class="text-zinc-400">Brightness</span>
+                <div class="flex items-center gap-1">
+                  @if (stage.midiAssignMode()) {
+                    <button
+                      hlmBtn
+                      variant="outline"
+                      size="xs"
+                      type="button"
+                      (click)="mapMidiFader({ type: 'PadBrightness' }, 'Pad Brightness', 'Continuous')"
+                    >
+                      {{ stage.bindingLabelFor({ type: 'PadBrightness' }) ?? 'Map' }}
+                    </button>
+                  }
+                  <span class="font-mono text-zinc-400">{{ snap().pad_brightness * 100 | number: '1.0-0' }}%</span>
+                </div>
+              </div>
+              <hlm-slider
+                [min]="0"
+                [max]="1"
+                [step]="0.01"
+                [value]="[snap().pad_brightness]"
+                (valueChange)="onPadBrightnessSlider($event)"
+              />
+            </div>
+
+            <div class="space-y-1">
+              <div class="flex items-center justify-between text-[11px]">
+                <span class="text-zinc-400">Shimmer</span>
+                <div class="flex items-center gap-1">
+                  @if (stage.midiAssignMode()) {
+                    <button
+                      hlmBtn
+                      variant="outline"
+                      size="xs"
+                      type="button"
+                      (click)="mapMidiFader({ type: 'PadShimmer' }, 'Pad Shimmer', 'Continuous')"
+                    >
+                      {{ stage.bindingLabelFor({ type: 'PadShimmer' }) ?? 'Map' }}
+                    </button>
+                  }
+                  <span class="font-mono text-zinc-400">{{ snap().pad_shimmer * 100 | number: '1.0-0' }}%</span>
+                </div>
+              </div>
+              <hlm-slider
+                [min]="0"
+                [max]="1"
+                [step]="0.01"
+                [value]="[snap().pad_shimmer]"
+                (valueChange)="onPadShimmerSlider($event)"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SPEC-019: Live Percussion Track & Groove Engine -->
+      <div hlmCard class="bg-zinc-900 border-zinc-800" data-testid="percussion-rack-card">
+        <div hlmCardHeader class="flex flex-row items-center justify-between gap-2 pb-2">
+          <div class="min-w-0">
+            <div class="flex items-center gap-1.5">
+              <h2 hlmCardTitle class="text-sm">Percussion Track</h2>
+              <span
+                class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                [class]="snap().percussion_mode === 'PercussionOnly'
+                  ? 'bg-orange-500/20 text-orange-300 border border-orange-500/40'
+                  : snap().percussion_mode === 'Layer'
+                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                    : 'bg-zinc-800 text-zinc-400'"
+              >
+                {{ snap().percussion_mode === 'PercussionOnly' ? 'PERC ONLY' : snap().percussion_mode === 'Layer' ? 'LAYERED' : 'OFF' }}
+              </span>
+            </div>
+            <p hlmCardDescription class="text-xs text-zinc-400">
+              Shakers, tambourine, claps, talking drum, clave &amp; bell
+            </p>
+          </div>
+          <div class="flex items-center gap-1 shrink-0">
+            <button
+              type="button"
+              data-testid="perc-mode-off"
+              (click)="onPercussionMode('Off')"
+              class="rounded border px-2 py-1 text-[11px] font-semibold cursor-pointer"
+              [class]="snap().percussion_mode === 'Off'
+                ? 'border-zinc-500 bg-zinc-700 text-zinc-100'
+                : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-zinc-200'"
             >
-              @if (stage.audioDevices().length === 0) {
-                <option [value]="snap().device_name">{{ snap().device_name }}</option>
-              }
-              @for (dev of stage.audioDevices(); track dev.name) {
-                <option [value]="dev.name" [selected]="dev.name === snap().device_name">
-                  {{ dev.name }} ({{ dev.max_channels }} ch)
-                </option>
-              }
-            </select>
+              Off
+            </button>
+            <button
+              type="button"
+              data-testid="perc-mode-layer"
+              (click)="onPercussionMode('Layer')"
+              class="rounded border px-2 py-1 text-[11px] font-semibold cursor-pointer"
+              [class]="snap().percussion_mode === 'Layer'
+                ? 'border-emerald-400 bg-emerald-500/20 text-emerald-200'
+                : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-zinc-200'"
+            >
+              Layer
+            </button>
+            <button
+              type="button"
+              data-testid="perc-mode-only"
+              (click)="onPercussionMode('PercussionOnly')"
+              class="rounded border px-2 py-1 text-[11px] font-semibold cursor-pointer"
+              [class]="snap().percussion_mode === 'PercussionOnly'
+                ? 'border-orange-400 bg-orange-500/20 text-orange-200'
+                : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-zinc-200'"
+              title="Mutes backing music stems while keeping Cue, Click, Pad & Live Percussion active"
+            >
+              Perc Only
+            </button>
+          </div>
+        </div>
+
+        <div hlmCardContent class="space-y-3 text-xs">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div>
+              <div class="flex items-center justify-between text-[10px] uppercase tracking-wider text-zinc-500 mb-1">
+                <span>Style / Custom Loop</span>
+                @if (snap().percussion_custom_pattern) {
+                  <span class="text-violet-300 font-semibold">Custom Loop Active</span>
+                }
+              </div>
+              <select
+                data-testid="percussion-style-select"
+                aria-label="Percussion Style or Custom Loop"
+                class="w-full rounded border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-xs text-zinc-100"
+                [ngModel]="activePercussionStyleSelectValue()"
+                (ngModelChange)="onPercussionStyleOrLoopSelect($event)"
+              >
+                @if (unsavedCustomLoopPattern(); as unsavedLoop) {
+                  <optgroup label="Active Custom Loop">
+                    <option [value]="'custom:' + unsavedLoop.id">
+                      ★ {{ unsavedLoop.name }} ({{ unsavedLoop.bars_in_cycle }}B)
+                    </option>
+                  </optgroup>
+                }
+                @if (stage.percussionLoops().length > 0) {
+                  <optgroup label="Custom Loops">
+                    @for (lp of stage.percussionLoops(); track lp.id) {
+                      <option [value]="'custom:' + lp.id">
+                        ★ {{ lp.name }} ({{ lp.bars_in_cycle }}B • {{ lp.hits.length }} hits)
+                      </option>
+                    }
+                  </optgroup>
+                }
+                <optgroup label="Built-In Styles">
+                  @for (opt of percussionStyleOptions; track opt.value) {
+                    <option [value]="'style:' + opt.value">[{{ opt.group }}] {{ opt.label }}</option>
+                  }
+                </optgroup>
+              </select>
+            </div>
+            <div>
+              <div class="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">Intensity</div>
+              <div class="grid grid-cols-3 gap-1">
+                @for (lvl of ['Low', 'Medium', 'High']; track lvl) {
+                  <button
+                    type="button"
+                    (click)="onPercussionIntensity($any(lvl))"
+                    class="rounded border py-1 text-[11px] font-semibold cursor-pointer"
+                    [class]="snap().percussion_intensity === lvl
+                      ? 'border-amber-400 bg-amber-500/20 text-amber-200'
+                      : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-zinc-200'"
+                  >
+                    {{ lvl }}
+                  </button>
+                }
+              </div>
+            </div>
           </div>
 
-          <div>
-            <label class="block text-[11px] uppercase tracking-wider text-zinc-400 mb-1">Channel Split Mode</label>
-            <div class="grid grid-cols-1 gap-1.5 text-xs">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <span class="text-zinc-300">Auto-Follow Sections</span>
+              <hlm-switch
+                [checked]="snap().percussion_follow_sections"
+                (checkedChange)="onPercussionFollowSections($event)"
+              />
+            </div>
+            <div class="flex flex-wrap items-center gap-1.5">
+              @if (activeSetlistItem(); as activeItem) {
+                <button
+                  type="button"
+                  (click)="onToggleActiveSlotPercussionLock()"
+                  class="rounded border px-2 py-0.5 text-[11px] font-semibold cursor-pointer"
+                  [class]="activeItem.percussion_lock
+                    ? 'border-amber-400 bg-amber-500/20 text-amber-200'
+                    : 'border-zinc-700 bg-zinc-950 text-zinc-400 hover:text-zinc-200'"
+                >
+                  {{ activeItem.percussion_lock ? 'Locked to Song' : 'Lock to Song' }}
+                </button>
+              }
               <button
+                hlmBtn
+                variant="outline"
+                size="xs"
                 type="button"
-                [disabled]="liveLock()"
-                (click)="onRoutingChange('SplitLeftRight')"
-                class="rounded-md border px-3 py-2 text-left transition-colors"
-                [class]="snap().routing_mode === 'SplitLeftRight'
-                  ? 'border-amber-500/60 bg-amber-500/10 text-amber-200'
-                  : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-zinc-200'"
+                data-testid="stage-percussion-play-btn"
+                (click)="onTogglePercussionAudition()"
+                [class]="snap().percussion_audition_playing
+                  ? 'border-red-500/60 bg-red-500/20 text-red-200'
+                  : 'border-emerald-500/50 text-emerald-300'"
               >
-                <div class="font-medium">Split L/R (2-Channel Stage Interface)</div>
-                <div class="text-[11px] opacity-80">Out 1 (L): Musical Stems • Out 2 (R): Click + Cues (IEM)</div>
-                <div class="text-[10px] text-zinc-500 mt-0.5">Focusrite, Behringer, PreSonus, MOTU, UA, etc.</div>
+                {{ snap().percussion_audition_playing ? '■ Stop Loop' : '▶ Play Loop' }}
               </button>
-
               <button
+                hlmBtn
+                variant="outline"
+                size="xs"
                 type="button"
-                [disabled]="liveLock()"
-                (click)="onRoutingChange('MultiOutStereo')"
-                class="rounded-md border px-3 py-2 text-left transition-colors"
-                [class]="snap().routing_mode === 'MultiOutStereo'
-                  ? 'border-amber-500/60 bg-amber-500/10 text-amber-200'
-                  : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-zinc-200'"
+                data-testid="percussion-studio-toggle"
+                (click)="onTogglePercussionStudio()"
               >
-                <div class="font-medium">Multi-Out Stereo (4+ Channels)</div>
-                <div class="text-[11px] opacity-80">Out 1–2: Stereo Music • Out 3–4: Click + Cues</div>
-                <div class="text-[10px] text-zinc-500 mt-0.5">Focusrite 18i20, Behringer X32/M32, MOTU, Dante</div>
+                {{ percussionStudioOpen() ? 'Close Studio' : 'Loop Studio' }}
+              </button>
+              <button
+                hlmBtn
+                variant="outline"
+                size="xs"
+                type="button"
+                data-testid="stage-open-loop-studio-btn"
+                [disabled]="liveLock()"
+                (click)="setWorkspaceMode('loops')"
+                class="border-violet-500/40 text-violet-300 hover:bg-violet-500/10"
+              >
+                Full Studio →
+              </button>
+              <button
+                hlmBtn
+                variant="outline"
+                size="xs"
+                type="button"
+                data-testid="percussion-mixer-toggle"
+                (click)="percussionMixerExpanded.set(!percussionMixerExpanded())"
+              >
+                {{ percussionMixerExpanded() ? 'Hide Instruments' : 'Instruments (9)' }}
               </button>
             </div>
           </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div>
+              <div class="flex items-center justify-between text-[10px] uppercase tracking-wider text-zinc-500 mb-1">
+                <span>Sound Kit</span>
+                <button
+                  type="button"
+                  data-testid="generate-studio-kits-btn"
+                  (click)="onGenerateStudioKits()"
+                  [disabled]="loopKitBusy()"
+                  class="text-[10px] font-semibold text-emerald-400 hover:text-emerald-300 cursor-pointer disabled:opacity-50"
+                  title="Generate rich multi-layer Studio Praise, Makossa Live, and Acoustic Cajon WAV kits"
+                >
+                  {{ loopKitBusy() ? 'Generating…' : '+ Generate Studio WAV Kits' }}
+                </button>
+              </div>
+              <select
+                data-testid="percussion-kit-select"
+                aria-label="Percussion Sound Kit"
+                class="w-full rounded border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-xs text-zinc-100"
+                [ngModel]="snap().percussion_kit_dir ?? ''"
+                (ngModelChange)="onSelectPercussionKitDir($event)"
+              >
+                <option value="">Built-In Hybrid Acoustic DSP</option>
+                @for (kit of stage.percussionKits(); track kit.id) {
+                  <option [value]="kit.dir">{{ kit.name }} ({{ kit.sample_count }} WAVs)</option>
+                }
+              </select>
+            </div>
+            <div class="space-y-1">
+              <div class="flex items-center justify-between text-[11px]">
+                <span class="text-zinc-400">Room Ambience</span>
+                <span class="font-mono text-zinc-300">{{ snap().percussion_room_mix * 100 | number: '1.0-0' }}%</span>
+              </div>
+              <hlm-slider
+                [min]="0"
+                [max]="1"
+                [step]="0.01"
+                [value]="[snap().percussion_room_mix]"
+                (valueChange)="onPercussionRoomSlider($event)"
+              />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div class="space-y-1">
+              <div class="flex items-center justify-between text-[11px]">
+                <span class="text-zinc-400">Groove Gain</span>
+                <span class="font-mono text-zinc-300">{{ snap().percussion_gain * 100 | number: '1.0-0' }}%</span>
+              </div>
+              <hlm-slider
+                [min]="0"
+                [max]="1.5"
+                [step]="0.01"
+                [value]="[snap().percussion_gain]"
+                (valueChange)="onPercussionGainSlider($event)"
+              />
+            </div>
+            <div class="space-y-1">
+              <div class="flex items-center justify-between text-[11px]">
+                <span class="text-zinc-400">IEM Send</span>
+                <span class="font-mono text-zinc-300">{{ snap().percussion_iem_send * 100 | number: '1.0-0' }}%</span>
+              </div>
+              <hlm-slider
+                [min]="0"
+                [max]="1"
+                [step]="0.01"
+                [value]="[snap().percussion_iem_send]"
+                (valueChange)="onPercussionIemSlider($event)"
+              />
+            </div>
+          </div>
+
+          @if (percussionStudioOpen()) {
+            <div
+              data-testid="percussion-loop-studio"
+              class="pt-2.5 border-t border-zinc-800 space-y-2.5"
+            >
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div class="flex items-center gap-1.5">
+                  <span class="text-[11px] font-semibold text-amber-300">Dynamic Loop Studio</span>
+                  @if (snap().percussion_custom_pattern; as activeCustom) {
+                    <span class="rounded bg-amber-500/20 border border-amber-500/40 px-1.5 py-0.5 text-[10px] text-amber-200">
+                      Custom: {{ activeCustom.name }}
+                    </span>
+                  } @else {
+                    <span class="rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-400">
+                      Using Preset
+                    </span>
+                  }
+                </div>
+                <div class="flex flex-wrap items-center gap-1">
+                  <button
+                    hlmBtn
+                    variant="outline"
+                    size="xs"
+                    type="button"
+                    data-testid="clone-style-loop-btn"
+                    (click)="onCloneStyleIntoEditor()"
+                  >
+                    Clone Preset
+                  </button>
+                  <button
+                    hlmBtn
+                    variant="outline"
+                    size="xs"
+                    type="button"
+                    data-testid="new-blank-loop-btn"
+                    (click)="onNewBlankLoop(16, 1)"
+                  >
+                    Blank 4/4
+                  </button>
+                  @if (snap().percussion_custom_pattern) {
+                    <button
+                      hlmBtn
+                      variant="ghost"
+                      size="xs"
+                      type="button"
+                      (click)="onUseBuiltInPresetPattern()"
+                    >
+                      Revert Preset
+                    </button>
+                  }
+                </div>
+              </div>
+
+              <!-- Saved loops + loop name / save / delete -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div class="flex items-center gap-1">
+                  <select
+                    aria-label="Saved Custom Loops"
+                    class="flex-1 rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-[11px] text-zinc-100"
+                    [ngModel]="snap().percussion_custom_pattern?.id ?? ''"
+                    (ngModelChange)="onSelectSavedLoop($event)"
+                  >
+                    <option value="">-- Built-in Style Preset --</option>
+                    @for (lp of stage.percussionLoops(); track lp.id) {
+                      <option [value]="lp.id">{{ lp.name }} ({{ lp.hits.length }} hits)</option>
+                    }
+                  </select>
+                  @if (snap().percussion_custom_pattern; as curLp) {
+                    <button
+                      type="button"
+                      (click)="onDeleteCustomLoop(curLp.id)"
+                      class="rounded border border-rose-500/40 bg-rose-500/10 px-2 py-1 text-[10px] text-rose-300 hover:bg-rose-500/20 cursor-pointer"
+                      title="Delete saved loop"
+                    >
+                      Del
+                    </button>
+                  }
+                </div>
+                <div class="flex items-center gap-1">
+                  <input
+                    type="text"
+                    aria-label="Custom Loop Name"
+                    class="flex-1 rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-[11px] text-zinc-100"
+                    [ngModel]="loopDraft().name"
+                    (ngModelChange)="onLoopDraftNameChange($event)"
+                    placeholder="Custom loop name"
+                  />
+                  <button
+                    hlmBtn
+                    variant="secondary"
+                    size="xs"
+                    type="button"
+                    data-testid="save-custom-loop-btn"
+                    (click)="onSaveCustomLoop()"
+                  >
+                    Save Loop
+                  </button>
+                </div>
+              </div>
+
+              <!-- Grid settings & paint brush -->
+              <div class="flex flex-wrap items-center gap-2 rounded border border-zinc-800 bg-zinc-950/70 p-2 text-[11px]">
+                <div class="flex items-center gap-1">
+                  <span class="text-zinc-500">Grid:</span>
+                  <select
+                    aria-label="Step Grid Resolution"
+                    class="rounded border border-zinc-700 bg-zinc-900 px-1.5 py-0.5 text-[11px]"
+                    [ngModel]="loopDraft().steps_per_bar"
+                    (ngModelChange)="onLoopDraftGridChange(+$event)"
+                  >
+                    <option [value]="16">4/4 (16th)</option>
+                    <option [value]="12">6/8 (12th)</option>
+                    <option [value]="24">12/8 (24th)</option>
+                  </select>
+                  <select
+                    aria-label="Bars in Cycle"
+                    class="rounded border border-zinc-700 bg-zinc-900 px-1.5 py-0.5 text-[11px]"
+                    [ngModel]="loopDraft().bars_in_cycle"
+                    (ngModelChange)="onLoopDraftBarsChange(+$event)"
+                  >
+                    <option [value]="1">1 Bar</option>
+                    <option [value]="2">2 Bars</option>
+                    <option [value]="4">4 Bars</option>
+                  </select>
+                </div>
+
+                <div class="flex items-center gap-1">
+                  <span class="text-zinc-500">Paint Intensity:</span>
+                  @for (lvl of ['Low', 'Medium', 'High']; track lvl) {
+                    <button
+                      type="button"
+                      (click)="loopPaintIntensity.set($any(lvl))"
+                      class="rounded border px-1.5 py-0.5 text-[10px] font-semibold cursor-pointer"
+                      [class]="loopPaintIntensity() === lvl
+                        ? (lvl === 'Low' ? 'border-emerald-400 bg-emerald-500/25 text-emerald-200' : lvl === 'Medium' ? 'border-amber-400 bg-amber-500/25 text-amber-200' : 'border-orange-400 bg-orange-500/25 text-orange-200')
+                        : 'border-zinc-800 bg-zinc-900 text-zinc-400'"
+                    >
+                      {{ lvl === 'Medium' ? 'Med+' : lvl === 'High' ? 'High+' : 'All' }}
+                    </button>
+                  }
+                </div>
+
+                <div class="flex items-center gap-1">
+                  <span class="text-zinc-500">Hit:</span>
+                  @for (v of ['Standard', 'Accent', 'Soft', 'Special']; track v) {
+                    <button
+                      type="button"
+                      (click)="loopPaintVariant.set($any(v))"
+                      class="rounded border px-1.5 py-0.5 text-[10px] font-semibold cursor-pointer"
+                      [class]="loopPaintVariant() === v
+                        ? 'border-sky-400 bg-sky-500/20 text-sky-200'
+                        : 'border-zinc-800 bg-zinc-900 text-zinc-400'"
+                    >
+                      {{ v === 'Standard' ? 'Std' : v === 'Special' ? 'Talk/Log' : v }}
+                    </button>
+                  }
+                </div>
+
+                <div class="flex items-center gap-1.5 min-w-[110px]">
+                  <span class="text-zinc-500">Swing {{ loopDraft().swing * 100 | number: '1.0-0' }}%</span>
+                  <div class="w-16">
+                    <hlm-slider
+                      [min]="0"
+                      [max]="0.35"
+                      [step]="0.01"
+                      [value]="[loopDraft().swing]"
+                      (valueChange)="onLoopDraftSwingSlider($event)"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <!-- 9-Instrument Interactive Step Sequencer -->
+              <div class="overflow-x-auto rounded border border-zinc-800 bg-zinc-950 p-1.5" data-testid="percussion-step-grid">
+                <div class="min-w-[540px] space-y-1">
+                  <!-- Beat header numbers -->
+                  <div class="flex items-center gap-1">
+                    <div class="w-24 shrink-0 text-[10px] text-zinc-500 pl-1">Instrument</div>
+                    <div
+                      class="flex-1 grid gap-0.5"
+                      [style.grid-template-columns]="'repeat(' + loopStepIndices().length + ', minmax(0, 1fr))'"
+                    >
+                      @for (st of loopStepIndices(); track st) {
+                        <div
+                          class="text-center text-[9px] font-mono rounded-xs py-0.5"
+                          [class]="snap().percussion_current_step === st
+                            ? 'bg-emerald-500/40 text-emerald-100 font-bold'
+                            : st % 4 === 0
+                              ? 'text-zinc-300 font-semibold'
+                              : 'text-zinc-600'"
+                        >
+                          {{ st % 4 === 0 ? st / 4 + 1 : '·' }}
+                        </div>
+                      }
+                    </div>
+                  </div>
+
+                  @for (ch of snap().percussion_channels; track ch.instrument) {
+                    <div class="flex items-center gap-1">
+                      <div class="w-24 shrink-0 flex items-center justify-between gap-1 pr-1">
+                        <button
+                          type="button"
+                          (click)="onTogglePercussionInstrument(ch.instrument, ch.enabled)"
+                          class="text-[10px] font-semibold truncate cursor-pointer text-left"
+                          [class]="ch.enabled ? 'text-zinc-200' : 'text-zinc-600 line-through'"
+                          [title]="'Toggle ' + percussionInstrumentFullLabel(ch.instrument)"
+                        >
+                          {{ percussionInstrumentShortLabel(ch.instrument) }}
+                        </button>
+                        <button
+                          type="button"
+                          (click)="onAuditionInstrument(ch.instrument)"
+                          class="rounded border border-zinc-700 bg-zinc-900 px-1 py-0 text-[9px] text-zinc-400 hover:text-emerald-300 cursor-pointer"
+                          title="Audition hit"
+                        >
+                          ▶
+                        </button>
+                      </div>
+
+                      <div
+                        class="flex-1 grid gap-0.5"
+                        [style.grid-template-columns]="'repeat(' + loopStepIndices().length + ', minmax(0, 1fr))'"
+                      >
+                        @for (st of loopStepIndices(); track st) {
+                          @let hit = loopStepHit(ch.instrument, st);
+                          <button
+                            type="button"
+                            [attr.data-testid]="'step-' + ch.instrument + '-' + st"
+                            (click)="onToggleLoopStep(ch.instrument, st)"
+                            class="h-5 rounded-xs border transition-colors cursor-pointer flex items-center justify-center text-[8px] font-bold"
+                            [class]="hit
+                              ? (hit.min_intensity === 'Low'
+                                  ? 'border-emerald-400 bg-emerald-500/70 text-zinc-950'
+                                  : hit.min_intensity === 'Medium'
+                                    ? 'border-amber-400 bg-amber-500/70 text-zinc-950'
+                                    : 'border-orange-400 bg-orange-500/75 text-zinc-950')
+                              : (st % 4 === 0
+                                  ? 'border-zinc-700/80 bg-zinc-900 hover:bg-zinc-800'
+                                  : 'border-zinc-800/70 bg-zinc-950 hover:bg-zinc-800/80')"
+                            [class.ring-1]="snap().percussion_current_step === st"
+                            [class.ring-white]="snap().percussion_current_step === st"
+                            [title]="hit ? ch.instrument + ' (' + hit.variant + ' @ ' + hit.min_intensity + ')' : 'Add hit'"
+                          >
+                            {{ hit ? (hit.variant === 'Accent' ? '!' : hit.variant === 'Soft' ? '·' : hit.variant === 'Special' ? '★' : '') : '' }}
+                          </button>
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+              </div>
+
+              <!-- Export 9-Stem Multi-Track Song Bundle -->
+              <div class="rounded border border-zinc-800 bg-zinc-950/70 p-2 space-y-2">
+                <div class="flex items-center justify-between text-[11px]">
+                  <span class="font-semibold text-zinc-200">Export Toggleable Multi-Stem Song Bundle</span>
+                  <span class="text-[10px] text-zinc-500">{{ snap().current_bpm | number: '1.0-0' }} BPM · Isolated WAV stems</span>
+                </div>
+                <div class="flex flex-wrap items-center gap-2 text-[11px]">
+                  <input
+                    type="text"
+                    aria-label="Export Loop Bundle Title"
+                    class="flex-1 min-w-[140px] rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-100"
+                    [ngModel]="loopExportTitle()"
+                    (ngModelChange)="loopExportTitle.set($event)"
+                    placeholder="Bundle title (e.g. Makossa Praise 129 BPM)"
+                  />
+                  <select
+                    aria-label="Export Bars"
+                    class="rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs"
+                    [ngModel]="loopExportBars()"
+                    (ngModelChange)="loopExportBars.set(+$event)"
+                  >
+                    <option [value]="4">4 Bars Loop</option>
+                    <option [value]="8">8 Bars</option>
+                    <option [value]="16">16 Bars</option>
+                    <option [value]="32">32 Bars</option>
+                  </select>
+                  <label class="flex items-center gap-1 text-[11px] text-zinc-300 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      [ngModel]="loopExportDynamic()"
+                      (ngModelChange)="loopExportDynamic.set($event)"
+                    />
+                    Dynamic Build
+                  </label>
+                  <button
+                    hlmBtn
+                    variant="default"
+                    size="xs"
+                    type="button"
+                    data-testid="export-loop-bundle-btn"
+                    [disabled]="loopExportBusy()"
+                    (click)="onExportLoopBundle()"
+                  >
+                    {{ loopExportBusy() ? 'Rendering WAVs…' : 'Export 9-Stem Bundle' }}
+                  </button>
+                </div>
+                @if (loopExportStatus(); as expMsg) {
+                  <div class="text-[11px] text-emerald-300" data-testid="export-loop-status">
+                    {{ expMsg }}
+                  </div>
+                }
+              </div>
+            </div>
+          }
+
+          @if (percussionMixerExpanded()) {
+            <div data-testid="percussion-instrument-mixer" class="pt-2 border-t border-zinc-800 space-y-2">
+              <div class="flex items-center justify-between text-[11px] text-zinc-400">
+                <span>Per-Instrument Groove Mix</span>
+                <button hlmBtn variant="ghost" size="xs" type="button" (click)="onResetPercussionMix()">
+                  Reset Mix
+                </button>
+              </div>
+              <div class="grid grid-cols-3 gap-1.5">
+                @for (ch of snap().percussion_channels; track ch.instrument) {
+                  <div
+                    class="rounded border p-1.5 space-y-1"
+                    [class]="ch.enabled ? 'border-zinc-700 bg-zinc-950/90' : 'border-zinc-800/60 bg-zinc-950/40 opacity-55'"
+                    [title]="percussionInstrumentFullLabel(ch.instrument)"
+                  >
+                    <div class="flex items-center justify-between gap-1">
+                      <button
+                        type="button"
+                        (click)="onTogglePercussionInstrument(ch.instrument, ch.enabled)"
+                        class="text-[11px] font-semibold truncate cursor-pointer"
+                        [class]="ch.enabled ? 'text-emerald-300' : 'text-zinc-500 line-through'"
+                      >
+                        {{ percussionInstrumentShortLabel(ch.instrument) }}
+                      </button>
+                      <span class="font-mono text-[10px] text-zinc-400">{{ ch.gain * 100 | number: '1.0-0' }}%</span>
+                    </div>
+                    <hlm-slider
+                      [min]="0"
+                      [max]="1.5"
+                      [step]="0.05"
+                      [value]="[ch.gain]"
+                      (valueChange)="onPercussionChannelGainSlider(ch.instrument, $event)"
+                    />
+                  </div>
+                }
+              </div>
+            </div>
+          }
         </div>
       </div>
 
@@ -390,7 +1377,7 @@
           <div class="space-y-1.5 pt-2 border-t border-zinc-800">
             <div class="flex items-center justify-between text-xs">
               <div class="flex items-center gap-2">
-                <span class="font-medium text-amber-300">Click Track</span>
+                <span class="font-medium text-amber-300">Metronome (Click)</span>
                 <span hlmBadge variant="outline" class="text-[10px] border-amber-500/40 text-amber-300">IEM ONLY</span>
               </div>
               <div class="flex items-center gap-2">
@@ -412,7 +1399,7 @@
                   [variant]="snap().click_muted ? 'destructive' : 'secondary'"
                   (click)="onClickMute(!snap().click_muted)"
                 >
-                  {{ snap().click_muted ? 'Muted' : 'Mute' }}
+                  {{ snap().click_muted ? 'MUTED (M)' : 'Mute (M)' }}
                 </button>
               </div>
             </div>
@@ -453,6 +1440,16 @@
                     hlmBtn
                     size="xs"
                     type="button"
+                    [variant]="isStageStemSoloed(stem.name) ? 'default' : 'outline'"
+                    [class]="isStageStemSoloed(stem.name) ? 'bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold' : ''"
+                    (click)="onStemSolo(stem.name)"
+                  >
+                    Solo
+                  </button>
+                  <button
+                    hlmBtn
+                    size="xs"
+                    type="button"
                     [variant]="stem.muted ? 'destructive' : 'secondary'"
                     (click)="onStemMute(stem.name, !stem.muted)"
                   >
@@ -469,6 +1466,954 @@
               />
             </div>
           }
+        </div>
+      </div>
+    </section>
+
+    <!-- Top-Right Setlist Queue & Setup Racks (Setup racks hidden while Live Lock is active) -->
+    <aside class="lg:col-span-5 flex flex-col gap-4" data-testid="live-stage-setlist-col">
+      <!-- Feature #1: Multi-Song Setlist Queue -->
+      <div hlmCard class="bg-zinc-900 border-zinc-800">
+        <div hlmCardHeader class="flex flex-row flex-wrap items-center justify-between gap-2 pb-3">
+          <div class="flex items-center gap-2 min-w-0">
+            <h2 hlmCardTitle class="text-sm">Sunday Setlist</h2>
+            <input
+              type="text"
+              class="rounded border border-zinc-800 bg-zinc-950 px-2 py-1 text-xs font-medium text-zinc-200 w-44 focus:outline-none focus:ring-1 focus:ring-amber-500/50"
+              [ngModel]="snap().setlist_name"
+              (ngModelChange)="stage.sendCommand({ type: 'SetSetlistName', payload: $event })"
+              [disabled]="liveLock()"
+            />
+          </div>
+
+          <div class="flex flex-wrap items-center gap-1.5">
+            <button
+              hlmBtn
+              variant="outline"
+              size="xs"
+              type="button"
+              [disabled]="snap().setlist_items.length < 2 && !stage.midiAssignMode()"
+              (click)="onPrevSong()"
+            >
+              Prev Song
+            </button>
+            <button
+              hlmBtn
+              variant="outline"
+              size="xs"
+              type="button"
+              [disabled]="snap().setlist_items.length < 2 && !stage.midiAssignMode()"
+              (click)="onNextSong()"
+            >
+              Next Song
+            </button>
+            <button
+              hlmBtn
+              variant="secondary"
+              size="xs"
+              type="button"
+              [disabled]="liveLock()"
+              (click)="setWorkspaceMode('studio')"
+            >
+              Open Studio
+            </button>
+            <button
+              hlmBtn
+              variant="secondary"
+              size="xs"
+              type="button"
+              [disabled]="liveLock()"
+              (click)="browseAndAddSongToSetlist()"
+            >
+              + Add Song Folder
+            </button>
+            <button
+              hlmBtn
+              variant="outline"
+              size="xs"
+              type="button"
+              data-testid="live-toggle-standalone-slot-btn"
+              [disabled]="liveLock()"
+              (click)="addSlotDrawerOpen.set(!addSlotDrawerOpen())"
+            >
+              + Pad / Groove Slot
+            </button>
+            <button
+              hlmBtn
+              variant="ghost"
+              size="xs"
+              type="button"
+              [disabled]="liveLock()"
+              (click)="openSetlistFromFile()"
+            >
+              Open Setlist
+            </button>
+            <button
+              hlmBtn
+              variant="ghost"
+              size="xs"
+              type="button"
+              [disabled]="liveLock() || snap().setlist_items.length === 0"
+              (click)="saveSetlistToFile()"
+            >
+              Save Setlist
+            </button>
+          </div>
+        </div>
+
+        <div hlmCardContent class="space-y-2.5">
+          <!-- Service Section Creator & Selection Quick Bar -->
+          @if (!liveLock()) {
+            <div class="rounded-lg border border-zinc-800/90 bg-zinc-950/70 px-2.5 py-2 flex flex-wrap items-center justify-between gap-2 text-xs">
+              <div class="flex flex-wrap items-center gap-1.5">
+                <span class="text-[10px] uppercase tracking-wider text-zinc-500 font-semibold">Sections:</span>
+                <select
+                  data-testid="live-new-section-kind"
+                  aria-label="New section kind"
+                  class="rounded border border-zinc-800 bg-zinc-900 px-1.5 py-1 text-xs text-zinc-200"
+                  [ngModel]="addSectionKind()"
+                  (ngModelChange)="addSectionKind.set($event)"
+                >
+                  @for (preset of sectionPresetOptions; track preset.kind) {
+                    <option [value]="preset.kind" class="bg-zinc-950">{{ preset.label }}</option>
+                  }
+                </select>
+                <input
+                  type="text"
+                  data-testid="live-new-section-name"
+                  placeholder="Optional custom label..."
+                  class="rounded border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs text-zinc-200 w-36 focus:outline-none focus:ring-1 focus:ring-amber-500/50"
+                  [ngModel]="addSectionName()"
+                  (ngModelChange)="addSectionName.set($event)"
+                />
+                <button
+                  hlmBtn
+                  variant="outline"
+                  size="xs"
+                  type="button"
+                  data-testid="live-add-section-btn"
+                  (click)="onAddServiceSection()"
+                >
+                  + Add Section
+                </button>
+              </div>
+
+              @if (snap().setlist_items.length > 0) {
+                <div class="flex items-center gap-1.5">
+                  <button
+                    hlmBtn
+                    variant="ghost"
+                    size="xs"
+                    type="button"
+                    data-testid="live-select-all-btn"
+                    (click)="selectAllSetlistSlots()"
+                  >
+                    Select All ({{ snap().setlist_items.length }})
+                  </button>
+                  @if (selectedSetlistSlots().length > 0) {
+                    <button
+                      hlmBtn
+                      variant="ghost"
+                      size="xs"
+                      type="button"
+                      data-testid="live-clear-selection-btn"
+                      (click)="clearSelectedSlots()"
+                    >
+                      Clear ({{ selectedSetlistSlots().length }})
+                    </button>
+                  }
+                </div>
+              }
+            </div>
+          }
+
+          <!-- Standalone PadOnly / PercussionGroove Slot Creator -->
+          @if (addSlotDrawerOpen() && !liveLock()) {
+            <div
+              data-testid="live-standalone-slot-drawer"
+              class="rounded-lg border border-cyan-500/40 bg-cyan-950/20 p-3 flex flex-wrap items-end gap-2 text-xs"
+            >
+              <div>
+                <div class="text-[10px] text-zinc-400 mb-0.5">Type</div>
+                <select
+                  class="rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-zinc-100"
+                  [ngModel]="newStandaloneKind()"
+                  (ngModelChange)="newStandaloneKind.set($event)"
+                >
+                  <option value="PadOnly">Pad Only (Sermon / Prayer)</option>
+                  <option value="PercussionGroove">Percussion Groove Only</option>
+                </select>
+              </div>
+              <div class="flex-1 min-w-[140px]">
+                <div class="text-[10px] text-zinc-400 mb-0.5">Slot Title</div>
+                <input
+                  type="text"
+                  class="w-full rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-zinc-100"
+                  [ngModel]="newStandaloneTitle()"
+                  (ngModelChange)="newStandaloneTitle.set($event)"
+                />
+              </div>
+              <div>
+                <div class="text-[10px] text-zinc-400 mb-0.5">Key</div>
+                <select
+                  class="rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-zinc-100"
+                  [ngModel]="newStandaloneKey()"
+                  (ngModelChange)="newStandaloneKey.set($event)"
+                >
+                  @for (k of chromaticKeys; track k) {
+                    <option [value]="k">{{ k }}</option>
+                    <option [value]="k + 'm'">{{ k }}m</option>
+                  }
+                </select>
+              </div>
+              <div>
+                <div class="text-[10px] text-zinc-400 mb-0.5">BPM</div>
+                <input
+                  type="number"
+                  min="30"
+                  max="260"
+                  class="w-16 rounded border border-zinc-700 bg-zinc-950 px-2 py-1 font-mono text-zinc-100"
+                  [ngModel]="newStandaloneBpm()"
+                  (ngModelChange)="newStandaloneBpm.set($event)"
+                />
+              </div>
+              <div>
+                <div class="text-[10px] text-zinc-400 mb-0.5">Time Sig</div>
+                <select
+                  class="rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-zinc-100"
+                  [ngModel]="newStandaloneTimeSig()"
+                  (ngModelChange)="newStandaloneTimeSig.set($event)"
+                >
+                  <option value="4/4">4/4</option>
+                  <option value="6/8">6/8</option>
+                  <option value="12/8">12/8</option>
+                  <option value="3/4">3/4</option>
+                </select>
+              </div>
+              @if (snap().setlist_sections.length > 0) {
+                <div>
+                  <div class="text-[10px] text-zinc-400 mb-0.5">Section</div>
+                  <select
+                    class="rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-zinc-100"
+                    [ngModel]="newStandaloneSectionId()"
+                    (ngModelChange)="newStandaloneSectionId.set($event)"
+                  >
+                    <option value="">Unsectioned</option>
+                    @for (sec of snap().setlist_sections; track sec.id) {
+                      <option [value]="sec.id">{{ sec.name }}</option>
+                    }
+                  </select>
+                </div>
+              }
+              <button
+                hlmBtn
+                size="xs"
+                type="button"
+                data-testid="live-confirm-standalone-slot-btn"
+                class="bg-cyan-500 text-zinc-950 hover:bg-cyan-400 font-semibold"
+                (click)="onAddStandaloneSlot()"
+              >
+                Create Slot
+              </button>
+            </div>
+          }
+
+          <!-- Batch Edit Toolbar when 1+ songs are checked -->
+          @if (selectedSetlistSlots().length > 0 && !liveLock()) {
+            <div
+              data-testid="live-batch-toolbar"
+              class="rounded-lg border border-amber-500/50 bg-amber-500/10 p-2.5 space-y-2 text-xs"
+            >
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <span class="font-semibold text-amber-200">
+                  Batch Edit: {{ selectedSetlistSlots().length }} selected
+                  <span class="text-[11px] font-normal text-amber-300/75 ml-1">(Shift+Click for range)</span>
+                </span>
+                <div class="flex items-center gap-1.5">
+                  <button
+                    hlmBtn
+                    size="xs"
+                    type="button"
+                    data-testid="live-batch-apply-btn"
+                    class="bg-amber-500 text-zinc-950 hover:bg-amber-400 font-semibold"
+                    (click)="applyBatchSetlistEdit()"
+                  >
+                    Apply to {{ selectedSetlistSlots().length }} Selected
+                  </button>
+                  <button hlmBtn variant="ghost" size="xs" type="button" (click)="clearSelectedSlots()">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-5 gap-1.5">
+                <select
+                  aria-label="Batch Target Key"
+                  data-testid="live-batch-key"
+                  class="rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-zinc-100"
+                  [ngModel]="batchTargetKey()"
+                  (ngModelChange)="onBatchTargetKeyChange($event)"
+                >
+                  <option value="">Key: No change</option>
+                  @for (k of chromaticKeys; track k) {
+                    <option [value]="k">Key → {{ k }}</option>
+                    <option [value]="k + 'm'">Key → {{ k }}m</option>
+                  }
+                </select>
+
+                <input
+                  type="text"
+                  aria-label="Batch BPM Override"
+                  data-testid="live-batch-bpm"
+                  placeholder="BPM (or 'reset')"
+                  class="rounded border border-zinc-700 bg-zinc-950 px-2 py-1 font-mono text-zinc-100"
+                  [ngModel]="batchBpm()"
+                  (ngModelChange)="onBatchBpmChange($event)"
+                />
+
+                <select
+                  aria-label="Batch Click Mode"
+                  data-testid="live-batch-click"
+                  class="rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-zinc-100"
+                  [ngModel]="batchClickMode()"
+                  (ngModelChange)="onBatchClickModeChange($event)"
+                >
+                  <option value="">Click: No change</option>
+                  <option value="AlwaysOn">Click → Always On</option>
+                  <option value="IntroOnly">Click → Intro Only</option>
+                  <option value="Off">Click → Off</option>
+                  <option value="reset">Click → Song Default</option>
+                </select>
+
+                <select
+                  aria-label="Batch Pad Enabled"
+                  data-testid="live-batch-pad"
+                  class="rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-zinc-100"
+                  [ngModel]="batchPadEnabled()"
+                  (ngModelChange)="onBatchPadEnabledChange($event)"
+                >
+                  <option value="">Pad: No change</option>
+                  <option value="on">Pad → ON</option>
+                  <option value="off">Pad → OFF</option>
+                </select>
+
+                <select
+                  aria-label="Batch Transition Mode"
+                  data-testid="live-batch-transition"
+                  class="rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-zinc-100"
+                  [ngModel]="batchTransitionMode()"
+                  (ngModelChange)="onBatchTransitionModeChange($event)"
+                >
+                  <option value="">Transition: No change</option>
+                  <option value="AutoAdvance">AutoAdvance</option>
+                  <option value="AutoPause">AutoPause</option>
+                  <option value="ContinueUntilStopped">Continue Until Stopped</option>
+                  <option value="Manual">Manual</option>
+                </select>
+
+                <input
+                  type="number"
+                  step="0.5"
+                  min="0"
+                  max="10"
+                  aria-label="Batch Crossfade Seconds"
+                  data-testid="live-batch-crossfade"
+                  placeholder="Xfade sec (0-10)"
+                  class="rounded border border-zinc-700 bg-zinc-950 px-2 py-1 font-mono text-zinc-100"
+                  [ngModel]="batchCrossfadeSec()"
+                  (ngModelChange)="onBatchCrossfadeChange($event)"
+                />
+
+                <select
+                  aria-label="Batch Section"
+                  data-testid="live-batch-section"
+                  class="rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-zinc-100"
+                  [ngModel]="batchSectionId()"
+                  (ngModelChange)="onBatchSectionIdChange($event)"
+                >
+                  <option value="">Section: No change</option>
+                  <option value="__none__">Move → Unsectioned</option>
+                  @for (sec of snap().setlist_sections; track sec.id) {
+                    <option [value]="sec.id">Section → {{ sec.name }}</option>
+                  }
+                </select>
+
+                <select
+                  aria-label="Batch Percussion Mode"
+                  data-testid="live-batch-perc-mode"
+                  class="rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-zinc-100"
+                  [ngModel]="batchPercussionMode()"
+                  (ngModelChange)="onBatchPercussionModeChange($event)"
+                >
+                  <option value="">Perc: No change</option>
+                  <option value="Off">Perc → Off</option>
+                  <option value="Layer">Perc → Layer</option>
+                  <option value="PercussionOnly">Perc → Perc Only</option>
+                </select>
+
+                <select
+                  aria-label="Batch Percussion Style"
+                  data-testid="live-batch-perc-style"
+                  class="rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-zinc-100"
+                  [ngModel]="batchPercussionStyle()"
+                  (ngModelChange)="onBatchPercussionStyleChange($event)"
+                >
+                  <option value="">Style: No change</option>
+                  @if (unsavedCustomLoopPattern(); as unsavedLoop) {
+                    <optgroup label="Active Custom Loop">
+                      <option [value]="'custom:' + unsavedLoop.id">
+                        ★ {{ unsavedLoop.name }} ({{ unsavedLoop.bars_in_cycle }}B)
+                      </option>
+                    </optgroup>
+                  }
+                  @if (stage.percussionLoops().length > 0) {
+                    <optgroup label="Custom Loops">
+                      @for (lp of stage.percussionLoops(); track lp.id) {
+                        <option [value]="'custom:' + lp.id">
+                          ★ {{ lp.name }} ({{ lp.bars_in_cycle }}B)
+                        </option>
+                      }
+                    </optgroup>
+                  }
+                  <optgroup label="Built-In Styles">
+                    @for (st of percussionStyleOptions; track st.value) {
+                      <option [value]="st.value">{{ st.label }}</option>
+                    }
+                  </optgroup>
+                </select>
+
+                <select
+                  aria-label="Batch Percussion Intensity"
+                  data-testid="live-batch-perc-intensity"
+                  class="rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-zinc-100"
+                  [ngModel]="batchPercussionIntensity()"
+                  (ngModelChange)="onBatchPercussionIntensityChange($event)"
+                >
+                  <option value="">Intensity: No change</option>
+                  <option value="Low">Low</option>
+                  <option value="Medium">Medium</option>
+                  <option value="High">High</option>
+                </select>
+              </div>
+            </div>
+          }
+
+          @if (snap().setlist_items.length === 0 && snap().setlist_sections.length === 0) {
+            <div class="rounded-lg border border-dashed border-zinc-800 bg-zinc-950/60 px-4 py-3 text-xs text-zinc-400 flex flex-wrap items-center justify-between gap-2">
+              <span>No songs queued in this setlist yet. Click <strong>+ Add Song Folder</strong> or <strong>+ Pad / Groove Slot</strong> to build your Sunday service.</span>
+              <span class="text-[11px] text-zinc-500">Or paste a path below and click <strong>+ Queue</strong></span>
+            </div>
+          } @else {
+            <div cdkDropListGroup class="space-y-2.5">
+              @for (bucket of setlistBuckets(); track bucket.id) {
+                <div class="rounded-lg border border-zinc-800/80 bg-zinc-950/40 overflow-hidden">
+                  @if (bucket.section; as sec) {
+                    <div
+                      class="px-3 py-1.5 flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800/80 bg-zinc-900/75"
+                      [style.borderLeft]="'4px solid ' + (sec.color || '#f59e0b')"
+                    >
+                      <button
+                        type="button"
+                        class="flex items-center gap-2 text-left cursor-pointer"
+                        (click)="onToggleSectionCollapsed(sec)"
+                      >
+                        <span class="text-xs font-mono text-zinc-400">{{ sec.collapsed ? '▸' : '▾' }}</span>
+                        <span class="text-xs font-semibold uppercase tracking-wide text-zinc-100">{{ sec.name }}</span>
+                        <span class="rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-400">
+                          {{ sec.kind }} • {{ bucket.items.length }}
+                        </span>
+                      </button>
+                      @if (!liveLock()) {
+                        <div class="flex items-center gap-1.5">
+                          <button
+                            hlmBtn
+                            variant="ghost"
+                            size="xs"
+                            type="button"
+                            (click)="selectSectionSlots(sec.id)"
+                          >
+                            Select Section
+                          </button>
+                          <button
+                            hlmBtn
+                            variant="ghost"
+                            size="xs"
+                            type="button"
+                            (click)="onRemoveServiceSection(sec.id)"
+                            title="Delete section header (keeps songs as Unsectioned)"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      }
+                    </div>
+                  } @else if (snap().setlist_sections.length > 0) {
+                    <div class="px-3 py-1.5 flex items-center justify-between border-b border-zinc-800/80 bg-zinc-900/40 text-xs text-zinc-400">
+                      <span class="font-semibold uppercase tracking-wider text-[11px]">Unsectioned ({{ bucket.items.length }})</span>
+                      @if (!liveLock()) {
+                        <button hlmBtn variant="ghost" size="xs" type="button" (click)="selectSectionSlots(null)">
+                          Select
+                        </button>
+                      }
+                    </div>
+                  }
+
+                  @if (!bucket.section?.collapsed) {
+                    <div
+                      cdkDropList
+                      [cdkDropListData]="bucket"
+                      [cdkDropListDisabled]="liveLock()"
+                      (cdkDropListDropped)="onLiveStageDrop($event)"
+                      class="p-1.5 space-y-1.5 min-h-[38px]"
+                      data-testid="live-setlist-droplist"
+                    >
+                      @if (bucket.items.length === 0) {
+                        <div class="rounded border border-dashed border-zinc-800 px-3 py-2 text-[11px] text-zinc-500 text-center">
+                          Drag songs here or assign to {{ bucket.section?.name || 'section' }}
+                        </div>
+                      }
+                      @for (item of bucket.items; track item.slot) {
+                        @let isCurSong = snap().active_setlist_slot === item.slot;
+                        @let isChecked = isSlotSelected(item.slot);
+                        <div
+                          cdkDrag
+                          [cdkDragData]="item"
+                          [cdkDragDisabled]="liveLock()"
+                          data-testid="live-setlist-row"
+                          class="rounded-lg border transition-colors"
+                          [class]="isCurSong
+                            ? 'border-emerald-500/70 bg-emerald-500/10'
+                            : isChecked
+                              ? 'border-amber-500/60 bg-amber-500/5'
+                              : 'border-zinc-800 bg-zinc-950/80 hover:border-zinc-700'"
+                        >
+                          @if (liveLock()) {
+                            <button
+                              type="button"
+                              data-testid="live-setlist-select-btn"
+                              (click)="onSelectSetlistSlot(item.slot)"
+                              class="w-full text-left flex flex-col gap-1.5 px-3 py-2.5 rounded-lg cursor-pointer hover:bg-zinc-900/50 focus-visible:outline-2 focus-visible:outline-amber-400"
+                            >
+                              <div class="flex items-start gap-2 w-full">
+                                <span class="text-xs font-mono text-zinc-500 pt-0.5 shrink-0">{{ item.slot + 1 }}.</span>
+                                <span
+                                  class="h-2.5 w-2.5 rounded-full shrink-0 mt-1.5"
+                                  [class]="item.preload_state.status === 'Ready'
+                                    ? 'bg-emerald-400'
+                                    : item.preload_state.status === 'Loading'
+                                      ? 'bg-amber-400 animate-pulse'
+                                      : item.preload_state.status === 'Error'
+                                        ? 'bg-red-500'
+                                        : 'bg-zinc-600'"
+                                  [title]="'Preload: ' + item.preload_state.status"
+                                ></span>
+                                <span
+                                  data-testid="live-setlist-title"
+                                  class="text-base font-bold leading-snug text-zinc-100 break-words flex-1"
+                                >{{ item.title }}</span>
+                                @if (isCurSong) {
+                                  <span class="rounded bg-emerald-500/20 border border-emerald-500/40 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-300 shrink-0">LIVE</span>
+                                }
+                              </div>
+                              <div class="flex flex-wrap items-center gap-1.5 pl-6 text-[11px] font-mono text-zinc-400 pointer-events-none">
+                                <span>Key {{ item.effective_key }}</span>
+                                @if (item.key_shift_semitones !== 0) {
+                                  <span class="text-amber-300">({{ item.key_shift_semitones > 0 ? '+' : '' }}{{ item.key_shift_semitones }})</span>
+                                }
+                                <span>• {{ item.effective_bpm | number: '1.0-1' }} BPM</span>
+                                <span>• {{ item.crossfade_sec | number: '1.0-1' }}s xf</span>
+                                <span>• {{ item.effective_click_mode === 'IntroOnly' ? 'Intro Click' : item.effective_click_mode === 'Off' ? 'Click Off' : 'Click On' }}</span>
+                                <span [class.text-emerald-300]="item.transition_mode === 'ContinueUntilStopped'">
+                                  • {{ formatTransitionMode(item.transition_mode) }}
+                                </span>
+                                @if (item.ambient_pad_enabled) {
+                                  <span class="text-emerald-300">• Pad ON</span>
+                                }
+                                @if (item.slot_kind === 'PadOnly') {
+                                  <span class="rounded bg-sky-500/20 border border-sky-500/40 px-1.5 py-0.5 text-[10px] font-semibold text-sky-300">Pad Underscore</span>
+                                } @else if (item.slot_kind === 'PercussionGroove') {
+                                  <span class="rounded bg-amber-500/20 border border-amber-500/40 px-1.5 py-0.5 text-[10px] font-semibold text-amber-300">Percussion Groove</span>
+                                } @else if (item.percussion_lock && item.percussion_lock.mode !== 'Off') {
+                                  <span class="rounded bg-orange-500/15 border border-orange-500/35 px-1.5 py-0.5 text-[10px] text-orange-300">
+                                    {{ item.percussion_lock.mode === 'PercussionOnly' ? 'Perc Only' : '+Perc' }}
+                                  </span>
+                                }
+                              </div>
+                            </button>
+                          } @else {
+                            <div class="px-2.5 py-2 flex flex-col gap-1.5">
+                              <div class="flex items-start gap-2 w-full">
+                                <button
+                                  cdkDragHandle
+                                  type="button"
+                                  data-testid="live-setlist-drag-handle"
+                                  aria-label="Drag to reorder"
+                                  title="Drag to reorder song"
+                                  class="cursor-grab active:cursor-grabbing text-zinc-500 hover:text-zinc-200 px-1 py-0.5 text-xs select-none shrink-0 mt-0.5"
+                                >
+                                  ⋮⋮
+                                </button>
+                                <input
+                                  type="checkbox"
+                                  data-testid="live-setlist-checkbox"
+                                  [checked]="isChecked"
+                                  (click)="onToggleSlotSelection(item.slot, $event)"
+                                  aria-label="Select slot for batch edit"
+                                  class="h-3.5 w-3.5 accent-amber-500 cursor-pointer shrink-0 mt-1"
+                                />
+                                <button
+                                  type="button"
+                                  data-testid="live-setlist-select-btn"
+                                  class="flex items-start gap-2 text-left flex-1 min-w-0 cursor-pointer"
+                                  (click)="onSelectSetlistSlot(item.slot)"
+                                >
+                                  <span class="text-xs font-mono text-zinc-500 w-5 shrink-0 pt-0.5">{{ item.slot + 1 }}.</span>
+                                  <span
+                                    class="h-2 w-2 rounded-full shrink-0 mt-1.5"
+                                    [class]="item.preload_state.status === 'Ready'
+                                      ? 'bg-emerald-400'
+                                      : item.preload_state.status === 'Loading'
+                                        ? 'bg-amber-400 animate-pulse'
+                                        : item.preload_state.status === 'Error'
+                                          ? 'bg-red-500'
+                                          : 'bg-zinc-600'"
+                                    [title]="'Preload: ' + item.preload_state.status"
+                                  ></span>
+                                  <div class="min-w-0 flex-1">
+                                    <div class="flex flex-wrap items-center gap-1.5">
+                                      <span data-testid="live-setlist-title" class="text-sm font-semibold leading-snug text-zinc-100 break-words">{{ item.title }}</span>
+                                      @if (item.slot_kind === 'PadOnly') {
+                                        <span class="rounded bg-sky-500/20 border border-sky-500/40 px-1.5 py-0.5 text-[10px] font-semibold text-sky-300 shrink-0">
+                                          Pad Underscore
+                                        </span>
+                                      } @else if (item.slot_kind === 'PercussionGroove') {
+                                        <span class="rounded bg-amber-500/20 border border-amber-500/40 px-1.5 py-0.5 text-[10px] font-semibold text-amber-300 shrink-0">
+                                          Percussion Groove
+                                        </span>
+                                      } @else if (item.percussion_lock && item.percussion_lock.mode !== 'Off') {
+                                        <span class="rounded bg-orange-500/15 border border-orange-500/35 px-1.5 py-0.5 text-[10px] text-orange-300 shrink-0">
+                                          {{ item.percussion_lock.mode === 'PercussionOnly' ? 'Perc Only' : '+Perc' }}
+                                        </span>
+                                      }
+                                    </div>
+                                    <div class="text-[11px] font-mono text-zinc-400 mt-0.5">
+                                      Key {{ item.effective_key }}
+                                      @if (item.key_shift_semitones !== 0) {
+                                        <span class="text-amber-300">({{ item.key_shift_semitones > 0 ? '+' : '' }}{{ item.key_shift_semitones }})</span>
+                                      }
+                                      • {{ item.effective_bpm | number: '1.0-1' }} BPM
+                                      • {{ item.crossfade_sec | number: '1.0-1' }}s xfade
+                                      @if (item.effective_click_mode === 'IntroOnly') {
+                                        • Intro Click
+                                      } @else if (item.effective_click_mode === 'Off') {
+                                        • Click Off
+                                      }
+                                    </div>
+                                  </div>
+                                </button>
+                              </div>
+
+                              <div class="flex flex-wrap items-center gap-1 pl-7">
+                                @if (snap().setlist_sections.length > 0) {
+                                  <select
+                                    aria-label="Assign section"
+                                    class="rounded border border-zinc-800 bg-zinc-900 px-1.5 py-0.5 text-[11px] text-zinc-300"
+                                    [ngModel]="item.section_id ?? ''"
+                                    (ngModelChange)="onAssignSlotSection(item.slot, $event)"
+                                  >
+                                    <option value="">Unsectioned</option>
+                                    @for (s of snap().setlist_sections; track s.id) {
+                                      <option [value]="s.id">{{ s.name }}</option>
+                                    }
+                                  </select>
+                                }
+                                <label class="flex items-center gap-1 rounded border border-zinc-800 bg-zinc-950 px-1.5 py-0.5 text-[10px] text-zinc-400" title="Crossfade duration in seconds">
+                                  Xf
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max="10"
+                                    step="0.5"
+                                    [ngModel]="item.crossfade_sec"
+                                    (ngModelChange)="onSetSlotCrossfadeSec(item.slot, $event)"
+                                    class="w-10 bg-transparent font-mono text-zinc-200 focus:outline-none text-right"
+                                  />s
+                                </label>
+                                <button
+                                  hlmBtn
+                                  variant="outline"
+                                  size="xs"
+                                  type="button"
+                                  (click)="cycleSlotClickMode(item.slot, item.effective_click_mode)"
+                                  title="Click to cycle per-song metronome mode (Always On / Intro Only / Off)"
+                                >
+                                  {{ item.effective_click_mode === 'IntroOnly' ? 'Intro Click' : item.effective_click_mode === 'Off' ? 'Click Off' : 'Click On' }}
+                                </button>
+                                <button
+                                  hlmBtn
+                                  variant="outline"
+                                  size="xs"
+                                  type="button"
+                                  data-testid="slot-transition-mode-btn"
+                                  [class]="item.transition_mode === 'ContinueUntilStopped' ? 'border-emerald-500/60 bg-emerald-500/15 text-emerald-200' : ''"
+                                  (click)="cycleTransitionMode(item.slot, item.transition_mode)"
+                                  title="Click to cycle end-of-song behavior (AutoPause / AutoAdvance / Continue Until Stopped / Manual)"
+                                >
+                                  {{ formatTransitionMode(item.transition_mode) }}
+                                </button>
+                                <button
+                                  hlmBtn
+                                  size="xs"
+                                  type="button"
+                                  [variant]="item.ambient_pad_enabled ? 'secondary' : 'ghost'"
+                                  (click)="toggleSlotPadEnabled(item.slot, item.ambient_pad_enabled)"
+                                  title="Auto-engage ambient drone pad on transition to this song"
+                                >
+                                  Pad: {{ item.ambient_pad_enabled ? 'ON' : 'OFF' }}
+                                </button>
+                                <button
+                                  hlmBtn
+                                  variant="ghost"
+                                  size="xs"
+                                  type="button"
+                                  [disabled]="item.slot === 0"
+                                  (click)="onMoveSetlistSlot(item.slot, item.slot - 1)"
+                                >
+                                  Up
+                                </button>
+                                <button
+                                  hlmBtn
+                                  variant="ghost"
+                                  size="xs"
+                                  type="button"
+                                  [disabled]="item.slot === snap().setlist_items.length - 1"
+                                  (click)="onMoveSetlistSlot(item.slot, item.slot + 1)"
+                                >
+                                  Dn
+                                </button>
+                                <button
+                                  hlmBtn
+                                  variant="ghost"
+                                  size="xs"
+                                  type="button"
+                                  (click)="onRemoveSetlistSlot(item.slot)"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            </div>
+                          }
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+
+      @if (!liveLock()) {
+      <!-- Feature #2: Native Song Bundle Picker & Manifest Setup -->
+      <div hlmCard class="bg-zinc-900 border-zinc-800">
+        <div hlmCardHeader class="flex flex-row flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 hlmCardTitle class="text-sm">Song Library & Bundle Setup</h2>
+            <p hlmCardDescription class="text-xs text-zinc-400">
+              Browse any folder with stems (WAV / OGG / MP3 / FLAC). Missing manifests open the in-app builder automatically.
+            </p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <button hlmBtn size="sm" type="button" [disabled]="liveLock()" (click)="browseAndLoadSong()">
+              Browse Folder...
+            </button>
+            <button hlmBtn variant="secondary" size="sm" type="button" [disabled]="liveLock()" (click)="openSongSetup()">
+              Setup / Edit Sections
+            </button>
+            <button hlmBtn variant="outline" size="sm" type="button" [disabled]="liveLock()" (click)="loadDemo()">
+              Load Demo
+            </button>
+          </div>
+        </div>
+        <div hlmCardContent class="flex flex-wrap gap-2">
+          <input
+            type="text"
+            class="flex-1 min-w-[200px] rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+            placeholder="/path/to/WorshipLibrary/songs/way-maker"
+            [ngModel]="customFolderPath()"
+            (ngModelChange)="customFolderPath.set($event)"
+            [disabled]="liveLock()"
+          />
+          <button hlmBtn size="sm" type="button" [disabled]="liveLock() || !customFolderPath().trim()" (click)="loadFolder()">
+            Load Folder
+          </button>
+          <button hlmBtn variant="secondary" size="sm" type="button" [disabled]="liveLock() || !customFolderPath().trim()" (click)="addTypedPathToSetlist()">
+            + Queue
+          </button>
+        </div>
+      </div>
+
+      <!-- Audio Routing Card -->
+      <div hlmCard class="bg-zinc-900 border-zinc-800">
+        <div hlmCardHeader class="flex flex-row items-center justify-between">
+          <div>
+            <h2 hlmCardTitle class="text-sm">Audio Output Interface</h2>
+            <p hlmCardDescription class="text-xs text-zinc-400">
+              {{ snap().device_name }} • {{ snap().device_sample_rate }} Hz • {{ snap().device_channels }} ch
+            </p>
+          </div>
+          <button
+            hlmBtn
+            variant="ghost"
+            size="sm"
+            type="button"
+            data-testid="scan-audio-outputs-btn"
+            [disabled]="stage.scanningOutputs()"
+            (click)="stage.scanAudioOutputs()"
+          >
+            {{ stage.scanningOutputs() ? 'Scanning…' : 'Scan Outputs' }}
+          </button>
+        </div>
+
+        <div hlmCardContent class="space-y-3">
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label class="block text-[11px] uppercase tracking-wider text-zinc-400">Output Device</label>
+              <span class="text-[10px] text-zinc-500">Auto-scans USB / CoreAudio / Focusrite</span>
+            </div>
+            <select
+              data-testid="audio-output-select"
+              class="w-full rounded-md border border-zinc-800 bg-zinc-950 px-2.5 py-2 text-xs text-zinc-100"
+              [disabled]="liveLock()"
+              [ngModel]="snap().device_name"
+              (ngModelChange)="onDeviceSelect($event)"
+            >
+              @if (stage.audioDevices().length === 0) {
+                <option [value]="snap().device_name">{{ snap().device_name }}</option>
+              }
+              @for (dev of stage.audioDevices(); track dev.name) {
+                <option [value]="dev.name">
+                  {{ dev.name }} ({{ dev.max_channels }} ch)
+                </option>
+              }
+            </select>
+          </div>
+
+          <div class="space-y-2.5">
+            <div>
+              <label class="block text-[11px] uppercase tracking-wider text-zinc-400 mb-1">Channel Output Mode</label>
+              <div class="grid grid-cols-2 gap-1.5 text-xs">
+                <button
+                  type="button"
+                  data-testid="routing-layout-2ch"
+                  [disabled]="liveLock()"
+                  (click)="onRoutingLayoutChange(false)"
+                  class="rounded-md border px-2.5 py-2 text-left transition-colors cursor-pointer disabled:opacity-50"
+                  [class]="!isMultiOutRouting()
+                    ? 'border-amber-500/60 bg-amber-500/10 text-amber-200'
+                    : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-zinc-200'"
+                >
+                  <div class="font-medium">2-Ch Split (Mono)</div>
+                  <div class="text-[10px] opacity-80">Out 1 (L) / Out 2 (R)</div>
+                </button>
+
+                <button
+                  type="button"
+                  data-testid="routing-layout-4ch"
+                  [disabled]="liveLock()"
+                  (click)="onRoutingLayoutChange(true)"
+                  class="rounded-md border px-2.5 py-2 text-left transition-colors cursor-pointer disabled:opacity-50"
+                  [class]="isMultiOutRouting()
+                    ? 'border-amber-500/60 bg-amber-500/10 text-amber-200'
+                    : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-zinc-200'"
+                >
+                  <div class="font-medium">4-Ch Stereo</div>
+                  <div class="text-[10px] opacity-80">Out 1–2 / Out 3–4 (Both Stereo)</div>
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-[11px] uppercase tracking-wider text-zinc-400 mb-1">
+                {{ isMultiOutRouting() ? 'Stereo Pair Assignment' : 'Left / Right Panning Assignment' }}
+              </label>
+              <div class="grid grid-cols-2 gap-1.5 text-xs">
+                <button
+                  type="button"
+                  data-testid="routing-side-music-first"
+                  [disabled]="liveLock()"
+                  (click)="onRoutingSideChange(false)"
+                  class="rounded-md border px-2.5 py-2 text-left transition-colors cursor-pointer disabled:opacity-50"
+                  [class]="!isClickFirstRouting()
+                    ? 'border-emerald-500/60 bg-emerald-500/10 text-emerald-200'
+                    : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-zinc-200'"
+                >
+                  <div class="font-medium">
+                    {{ isMultiOutRouting() ? '1–2 Music • 3–4 Click' : 'Left Music • Right Click' }}
+                  </div>
+                  <div class="text-[10px] opacity-80">
+                    {{ isMultiOutRouting() ? 'FOH Stereo 1–2 • IEM Stereo 3–4' : 'Out 1 (L) Tracks • Out 2 (R) IEM' }}
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  data-testid="routing-side-click-first"
+                  [disabled]="liveLock()"
+                  (click)="onRoutingSideChange(true)"
+                  class="rounded-md border px-2.5 py-2 text-left transition-colors cursor-pointer disabled:opacity-50"
+                  [class]="isClickFirstRouting()
+                    ? 'border-emerald-500/60 bg-emerald-500/10 text-emerald-200'
+                    : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-zinc-200'"
+                >
+                  <div class="font-medium">
+                    {{ isMultiOutRouting() ? '1–2 Click • 3–4 Music' : 'Left Click • Right Music' }}
+                  </div>
+                  <div class="text-[10px] opacity-80">
+                    {{ isMultiOutRouting() ? 'IEM Stereo 1–2 • FOH Stereo 3–4' : 'Out 1 (L) IEM • Out 2 (R) Tracks' }}
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            <div
+              data-testid="routing-active-map"
+              class="rounded-md border border-zinc-800 bg-zinc-950/80 px-2.5 py-2 text-[11px] grid grid-cols-2 gap-2"
+            >
+              <div>
+                <div class="text-[10px] uppercase tracking-wider text-zinc-500">
+                  {{ isMultiOutRouting() ? 'Out 1–2 (Stereo)' : 'Out 1 / Left (Mono)' }}
+                </div>
+                <div
+                  class="font-medium"
+                  [class]="isClickFirstRouting() ? 'text-amber-300' : 'text-emerald-300'"
+                >
+                  {{ isClickFirstRouting() ? 'Click + Cues (IEM)' : 'Soundtrack (FOH)' }}
+                </div>
+              </div>
+              <div>
+                <div class="text-[10px] uppercase tracking-wider text-zinc-500">
+                  {{ isMultiOutRouting() ? 'Out 3–4 (Stereo)' : 'Out 2 / Right (Mono)' }}
+                </div>
+                <div
+                  class="font-medium"
+                  [class]="isClickFirstRouting() ? 'text-emerald-300' : 'text-amber-300'"
+                >
+                  {{ isClickFirstRouting() ? 'Soundtrack (FOH)' : 'Click + Cues (IEM)' }}
+                </div>
+              </div>
+            </div>
+
+            @if (isMultiOutRouting() && snap().device_channels < 4) {
+              <div
+                data-testid="routing-4ch-fallback-notice"
+                class="rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-[11px] text-amber-200"
+              >
+                Active device exposes {{ snap().device_channels }} ch — falling back to 2-ch split until a 4+ ch device is connected.
+              </div>
+            }
+          </div>
         </div>
       </div>
 
@@ -567,8 +2512,10 @@
           }
         </div>
       </div>
+      }
     </aside>
   </main>
+  }
 
   <footer class="border-t border-zinc-800 bg-zinc-900/90 px-4 py-2 flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-400">
     <div class="flex items-center gap-2">
@@ -588,4 +2535,508 @@
       </button>
     </div>
   </footer>
+
+  <!-- Feature #2 Modal: In-App Song Bundle Setup & Section Marker Editor -->
+  @if (songEditorOpen() && songEditorManifest(); as ed) {
+    <div class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-xl border border-zinc-700 bg-zinc-900 shadow-2xl p-5 space-y-4 text-zinc-100">
+        <div class="flex items-start justify-between gap-3 border-b border-zinc-800 pb-3">
+          <div>
+            <h2 class="text-base font-semibold">
+              {{ songEditorHasManifest() ? 'Edit Song Bundle Manifest' : 'New Song Bundle Setup' }}
+            </h2>
+            <p class="text-xs text-zinc-400 font-mono truncate max-w-xl">
+              {{ songEditorDir() }}
+              @if (songEditorDurationSec() > 0) {
+                • ~{{ songEditorDurationSec() | number: '1.0-1' }}s audio detected
+              }
+            </p>
+          </div>
+          <button hlmBtn variant="ghost" size="sm" type="button" (click)="closeSongEditor()">Close</button>
+        </div>
+
+        @if (songEditorError(); as err) {
+          <div class="rounded-md border border-red-500/40 bg-red-950/50 px-3 py-2 text-xs text-red-200">
+            {{ err }}
+          </div>
+        }
+
+        <!-- Metadata Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+          <div class="sm:col-span-2">
+            <label class="block text-zinc-400 mb-1">Song Title</label>
+            <input
+              type="text"
+              class="w-full rounded border border-zinc-700 bg-zinc-950 px-2.5 py-1.5 text-zinc-100"
+              [ngModel]="ed.title"
+              (ngModelChange)="updateEditorField('title', $event)"
+            />
+          </div>
+          <div>
+            <label class="block text-zinc-400 mb-1">Artist</label>
+            <input
+              type="text"
+              class="w-full rounded border border-zinc-700 bg-zinc-950 px-2.5 py-1.5 text-zinc-100"
+              [ngModel]="ed.artist"
+              (ngModelChange)="updateEditorField('artist', $event)"
+            />
+          </div>
+          <div>
+            <label class="block text-zinc-400 mb-1">BPM</label>
+            <input
+              type="number"
+              step="0.5"
+              min="20"
+              max="280"
+              class="w-full rounded border border-zinc-700 bg-zinc-950 px-2.5 py-1.5 font-mono text-zinc-100"
+              [ngModel]="ed.bpm"
+              (ngModelChange)="updateEditorField('bpm', $event)"
+            />
+          </div>
+          <div>
+            <label class="block text-zinc-400 mb-1">Original Key</label>
+            <select
+              class="w-full rounded border border-zinc-700 bg-zinc-950 px-2.5 py-1.5 text-zinc-100"
+              [ngModel]="ed.original_key"
+              (ngModelChange)="updateEditorField('original_key', $event)"
+            >
+              @for (k of songKeyOptions; track k) {
+                <option [value]="k">{{ k }}</option>
+              }
+            </select>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-zinc-400 mb-1">Beats / Bar</label>
+              <input
+                type="number"
+                min="1"
+                max="16"
+                class="w-full rounded border border-zinc-700 bg-zinc-950 px-2 py-1.5 font-mono text-zinc-100"
+                [ngModel]="ed.time_signature[0]"
+                (ngModelChange)="updateEditorField('ts_num', $event)"
+              />
+            </div>
+            <div>
+              <label class="block text-zinc-400 mb-1">Downbeat (s)</label>
+              <div class="flex items-center gap-1">
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  class="w-full rounded border border-zinc-700 bg-zinc-950 px-2 py-1.5 font-mono text-zinc-100"
+                  [ngModel]="ed.first_downbeat_sec"
+                  (ngModelChange)="updateEditorField('first_downbeat_sec', $event)"
+                />
+                <button hlmBtn variant="ghost" size="xs" type="button" (click)="nudgeEditorBeat(-1)" title="Shift Beat 1 earlier by 1 beat">-1B</button>
+                <button hlmBtn variant="ghost" size="xs" type="button" (click)="nudgeEditorBeat(1)" title="Shift Beat 1 later by 1 beat">+1B</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Discovered Stems Classification -->
+        <div class="space-y-2 border-t border-zinc-800 pt-3">
+          <div class="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+            Stem Roles ({{ editableStems().length }} stems)
+          </div>
+          <div class="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+            @for (st of editableStems(); track st.key) {
+              <div class="flex flex-wrap items-center justify-between gap-2 rounded border border-zinc-800 bg-zinc-950 px-3 py-1.5 text-xs">
+                <div class="min-w-[140px]">
+                  <span class="font-semibold text-zinc-200">{{ st.key }}</span>
+                  <span class="ml-2 text-[11px] font-mono text-zinc-500">{{ st.file }}</span>
+                </div>
+                <div class="flex items-center gap-3">
+                  <label class="inline-flex items-center gap-1.5 text-zinc-300 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      [checked]="st.pitched"
+                      (change)="updateEditorStem(st.key, { pitched: $any($event.target).checked })"
+                    />
+                    <span>Transpose Key</span>
+                  </label>
+                  <label class="inline-flex items-center gap-1.5 text-amber-300 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      [checked]="st.is_cues"
+                      (change)="updateEditorStem(st.key, { is_cues: $any($event.target).checked })"
+                    />
+                    <span>IEM Cues Bus</span>
+                  </label>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Arrangement Sections -->
+        <div class="space-y-2 border-t border-zinc-800 pt-3">
+          <div class="flex items-center justify-between">
+            <div class="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+              Song Sections (1-Based Bar Ranges [start, end))
+            </div>
+            <button hlmBtn variant="outline" size="xs" type="button" (click)="addEditorSection()">
+              + Add Section
+            </button>
+          </div>
+          <div class="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+            @for (sec of ed.sections; track sec.id; let idx = $index) {
+              <div class="grid grid-cols-12 gap-2 items-center rounded border border-zinc-800 bg-zinc-950 px-2.5 py-1.5 text-xs">
+                <input
+                  type="text"
+                  class="col-span-5 rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-zinc-100"
+                  [ngModel]="sec.name"
+                  (ngModelChange)="updateEditorSection(idx, { name: $event })"
+                  placeholder="Section name"
+                />
+                <div class="col-span-3 flex items-center gap-1">
+                  <span class="text-zinc-500">Start</span>
+                  <input
+                    type="number"
+                    min="1"
+                    class="w-full rounded border border-zinc-700 bg-zinc-900 px-1.5 py-1 font-mono text-zinc-100"
+                    [ngModel]="sec.start_bar"
+                    (ngModelChange)="updateEditorSection(idx, { start_bar: +$event })"
+                  />
+                </div>
+                <div class="col-span-3 flex items-center gap-1">
+                  <span class="text-zinc-500">End</span>
+                  <input
+                    type="number"
+                    min="2"
+                    class="w-full rounded border border-zinc-700 bg-zinc-900 px-1.5 py-1 font-mono text-zinc-100"
+                    [ngModel]="sec.end_bar"
+                    (ngModelChange)="updateEditorSection(idx, { end_bar: +$event })"
+                  />
+                </div>
+                <button
+                  hlmBtn
+                  variant="ghost"
+                  size="xs"
+                  type="button"
+                  class="col-span-1"
+                  [disabled]="ed.sections.length <= 1"
+                  (click)="removeEditorSection(idx)"
+                >
+                  ×
+                </button>
+              </div>
+            }
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 border-t border-zinc-800 pt-3">
+          <button hlmBtn variant="outline" size="sm" type="button" (click)="closeSongEditor()">Cancel</button>
+          <button hlmBtn size="sm" type="button" (click)="saveSongEditorManifest()">
+            Save manifest.json & Load Song
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Tonic Pad Studio Modal (4-Layer Mixer, Voicing, Tone & Presets) -->
+  @if (padStudioOpen()) {
+    <div
+      data-testid="tonic-pad-studio-modal"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+    >
+      <div class="w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-xl border border-zinc-700 bg-zinc-900 p-5 shadow-2xl space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 pb-3">
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-base font-bold text-zinc-100">Tonic Pad Studio</h2>
+              <span class="rounded-full border border-amber-500/40 bg-amber-500/15 px-2.5 py-0.5 text-xs font-semibold text-amber-300">
+                {{ snap().pad_preset_name }}
+              </span>
+              <span class="rounded border border-zinc-700 bg-zinc-950 px-2 py-0.5 text-xs font-mono text-emerald-300">
+                Key: {{ snap().pad_key }}
+              </span>
+            </div>
+            <p class="text-xs text-zinc-400">
+              Stack up to 4 synthesized pad layers with register &amp; minor voicing, tone shaping, and seamless preset crossfades.
+            </p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button
+              hlmBtn
+              size="sm"
+              type="button"
+              (click)="onTogglePad()"
+              [class]="snap().pad_enabled
+                ? 'bg-amber-500 text-zinc-950 hover:bg-amber-400 font-semibold'
+                : 'border border-zinc-700 bg-zinc-950 text-zinc-200 hover:bg-zinc-800'"
+            >
+              {{ snap().pad_enabled ? 'PAD ON' : 'PAD OFF' }}
+            </button>
+            <button hlmBtn variant="ghost" size="sm" type="button" (click)="closePadStudio()">Done</button>
+          </div>
+        </div>
+
+        @if (padStudioNotice(); as notice) {
+          <div class="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-200">
+            {{ notice }}
+          </div>
+        }
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+          <!-- Left: Factory & Custom Presets -->
+          <div class="lg:col-span-4 space-y-3 rounded-lg border border-zinc-800 bg-zinc-950/70 p-3">
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-xs font-semibold uppercase tracking-wider text-zinc-400">Pad Presets</span>
+              <div class="inline-flex rounded border border-zinc-800 bg-zinc-900 p-0.5 text-[11px]">
+                <button
+                  type="button"
+                  (click)="padPresetFilter.set('all')"
+                  class="rounded px-2 py-0.5 cursor-pointer"
+                  [class]="padPresetFilter() === 'all' ? 'bg-zinc-700 text-zinc-100' : 'text-zinc-400'"
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  (click)="padPresetFilter.set('factory')"
+                  class="rounded px-2 py-0.5 cursor-pointer"
+                  [class]="padPresetFilter() === 'factory' ? 'bg-zinc-700 text-zinc-100' : 'text-zinc-400'"
+                >
+                  Factory
+                </button>
+                <button
+                  type="button"
+                  (click)="padPresetFilter.set('custom')"
+                  class="rounded px-2 py-0.5 cursor-pointer"
+                  [class]="padPresetFilter() === 'custom' ? 'bg-zinc-700 text-zinc-100' : 'text-zinc-400'"
+                >
+                  Custom
+                </button>
+              </div>
+            </div>
+
+            <div class="space-y-1.5 max-h-64 overflow-y-auto pr-1">
+              @for (preset of filteredPadPresets(); track preset.id) {
+                <div
+                  class="flex items-center justify-between gap-2 rounded-md border px-2.5 py-2 text-xs transition-colors"
+                  [class]="snap().pad_preset_id === preset.id
+                    ? 'border-amber-500/60 bg-amber-500/10 text-amber-200'
+                    : 'border-zinc-800 bg-zinc-900/70 text-zinc-200 hover:border-zinc-700'"
+                >
+                  <button
+                    type="button"
+                    class="flex-1 text-left cursor-pointer min-w-0"
+                    (click)="onSelectPadPreset(preset)"
+                  >
+                    <div class="font-semibold truncate">{{ preset.name }}</div>
+                    <div class="text-[10px] text-zinc-400">
+                      {{ preset.category }} • {{ preset.layers.length }} layer{{ preset.layers.length === 1 ? '' : 's' }}
+                    </div>
+                  </button>
+                  @if (!preset.is_factory) {
+                    <button
+                      hlmBtn
+                      variant="ghost"
+                      size="xs"
+                      type="button"
+                      (click)="onDeleteCustomPadPreset(preset.id)"
+                      title="Delete custom preset"
+                    >
+                      ×
+                    </button>
+                  }
+                </div>
+              }
+            </div>
+
+            <!-- Save Current Mix as Custom Preset -->
+            <div class="border-t border-zinc-800 pt-2.5 space-y-2">
+              <div class="text-[11px] font-medium text-zinc-400">Save Current Mix</div>
+              <div class="flex gap-1.5">
+                <input
+                  type="text"
+                  data-testid="new-pad-preset-input"
+                  class="flex-1 min-w-0 rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-100"
+                  placeholder="Preset name..."
+                  [ngModel]="padNewPresetName()"
+                  (ngModelChange)="padNewPresetName.set($event)"
+                />
+                <button
+                  hlmBtn
+                  variant="secondary"
+                  size="xs"
+                  type="button"
+                  data-testid="save-pad-preset-btn"
+                  (click)="onSaveCustomPadPreset()"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: 4-Layer Mixer -->
+          <div class="lg:col-span-8 space-y-2.5">
+            <div class="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+              4-Layer Pad Mixer &amp; Voicing
+            </div>
+            @for (layer of snap().pad_layers; track $index; let idx = $index) {
+              <div
+                class="rounded-lg border p-3 space-y-2.5 transition-colors"
+                [class]="layer.enabled
+                  ? 'border-zinc-700 bg-zinc-950/90'
+                  : 'border-zinc-800/80 bg-zinc-950/40 opacity-75'"
+              >
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <div class="flex items-center gap-2">
+                    <button
+                      type="button"
+                      (click)="onUpdatePadLayer(idx, { enabled: !layer.enabled })"
+                      class="rounded border px-2 py-0.5 text-[11px] font-semibold cursor-pointer"
+                      [class]="layer.enabled
+                        ? 'border-emerald-500/50 bg-emerald-500/20 text-emerald-300'
+                        : 'border-zinc-700 bg-zinc-900 text-zinc-400'"
+                    >
+                      Layer {{ idx + 1 }}: {{ layer.enabled ? 'ON' : 'OFF' }}
+                    </button>
+                    <select
+                      class="rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-100"
+                      [ngModel]="layer.archetype"
+                      (ngModelChange)="onUpdatePadLayer(idx, { archetype: $event, enabled: true })"
+                    >
+                      @for (arch of padArchetypeOptions; track arch.id) {
+                        <option [value]="arch.id">{{ arch.label }}</option>
+                      }
+                    </select>
+                  </div>
+
+                  <div class="flex flex-wrap items-center gap-2">
+                    <!-- Octave Register -->
+                    <div class="inline-flex rounded border border-zinc-800 bg-zinc-900 p-0.5 text-[11px]">
+                      @for (reg of padRegisterOptions; track reg.id) {
+                        <button
+                          type="button"
+                          (click)="onUpdatePadLayer(idx, { register: reg.id, enabled: true })"
+                          class="rounded px-2 py-0.5 cursor-pointer"
+                          [class]="layer.register === reg.id
+                            ? 'bg-amber-500/20 text-amber-200 font-semibold'
+                            : 'text-zinc-400 hover:text-zinc-200'"
+                        >
+                          {{ reg.label }}
+                        </button>
+                      }
+                    </div>
+
+                    <!-- Tonality / Minor Voicing -->
+                    <select
+                      class="rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-[11px] text-zinc-200"
+                      [ngModel]="layer.tonality"
+                      (ngModelChange)="onUpdatePadLayer(idx, { tonality: $event, enabled: true })"
+                    >
+                      @for (ton of padTonalityOptions; track ton.id) {
+                        <option [value]="ton.id">{{ ton.label }}</option>
+                      }
+                    </select>
+                  </div>
+                </div>
+
+                <div class="flex items-center gap-3">
+                  <span class="text-[11px] text-zinc-400 w-12">Level</span>
+                  <div class="flex-1">
+                    <hlm-slider
+                      [min]="0"
+                      [max]="1"
+                      [step]="0.01"
+                      [value]="[layer.gain]"
+                      (valueChange)="onPadLayerGain(idx, $event)"
+                    />
+                  </div>
+                  <span class="font-mono text-[11px] text-zinc-400 w-10 text-right">
+                    {{ layer.gain * 100 | number: '1.0-0' }}%
+                  </span>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Global Tone, Spatial & Crossfade Bar -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 rounded-lg border border-zinc-800 bg-zinc-950/70 p-3">
+          <div class="space-y-1">
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-zinc-300">Brightness</span>
+              <span class="font-mono text-zinc-400">{{ snap().pad_brightness * 100 | number: '1.0-0' }}%</span>
+            </div>
+            <hlm-slider
+              [min]="0"
+              [max]="1"
+              [step]="0.01"
+              [value]="[snap().pad_brightness]"
+              (valueChange)="onPadBrightnessSlider($event)"
+            />
+          </div>
+
+          <div class="space-y-1">
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-zinc-300">Shimmer</span>
+              <span class="font-mono text-zinc-400">{{ snap().pad_shimmer * 100 | number: '1.0-0' }}%</span>
+            </div>
+            <hlm-slider
+              [min]="0"
+              [max]="1"
+              [step]="0.01"
+              [value]="[snap().pad_shimmer]"
+              (valueChange)="onPadShimmerSlider($event)"
+            />
+          </div>
+
+          <div class="space-y-1">
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-zinc-300">Stereo Pan</span>
+              <span class="font-mono text-zinc-400">
+                {{ snap().pad_pan === 0 ? 'C' : (snap().pad_pan < 0 ? 'L ' + (-snap().pad_pan * 100 | number: '1.0-0') : 'R ' + (snap().pad_pan * 100 | number: '1.0-0')) }}
+              </span>
+            </div>
+            <hlm-slider
+              [min]="-1"
+              [max]="1"
+              [step]="0.02"
+              [value]="[snap().pad_pan]"
+              (valueChange)="onPadPanSlider($event)"
+            />
+          </div>
+
+          <div class="space-y-1">
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-zinc-300">Crossfade</span>
+              <span class="font-mono text-zinc-400">{{ snap().pad_crossfade_sec | number: '1.1-1' }}s</span>
+            </div>
+            <hlm-slider
+              [min]="0.5"
+              [max]="12"
+              [step]="0.5"
+              [value]="[snap().pad_crossfade_sec]"
+              (valueChange)="onPadCrossfadeSlider($event)"
+            />
+          </div>
+        </div>
+
+        @if (activeSetlistItem(); as activeItem) {
+          <div class="flex flex-wrap items-center justify-between gap-2 border-t border-zinc-800 pt-3 text-xs">
+            <span class="text-zinc-400">
+              Active Setlist Slot: <strong class="text-zinc-200">{{ activeItem.title }}</strong> —
+              {{ activeItem.pad_lock ? 'Preset Locked to this slot' : 'Pass-Through (keeps live tweaks)' }}
+            </span>
+            <button
+              hlmBtn
+              size="sm"
+              type="button"
+              [variant]="activeItem.pad_lock ? 'secondary' : 'outline'"
+              (click)="onToggleActiveSlotPadLock()"
+            >
+              {{ activeItem.pad_lock ? 'Unlock Slot (Pass-Through)' : 'Lock Preset to Active Slot' }}
+            </button>
+          </div>
+        }
+      </div>
+    </div>
+  }
 </div>

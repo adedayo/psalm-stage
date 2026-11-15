@@ -1,0 +1,50 @@
+---
+title: MIDI Keyboards & Pedalboards
+description: Connect USB/DIN MIDI hardware with zero-config Omni auto-connect, hotplug detection, and one-click MIDI Learn.
+---
+
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+Psalm Stage connects natively to class-compliant USB and 5-pin DIN MIDI controllers via CoreMIDI (macOS), WinMM (Windows), and ALSA (Linux).
+
+## Zero-Config Omni Auto-Connect & Hotplug
+
+- **Automatic Detection**: On startup, Psalm Stage scans all connected MIDI inputs and listens in **Omni Mode**—so keyboards, drum pads, and floor pedals work simultaneously without picking a single port.
+- **Multi-Port Keyboards**: Controllers that expose multiple virtual ports (e.g., Keyboard + DAW + Editor ports) are unified automatically.
+- **1.5-Second Hotplug Recovery**: Plugging in a bumped or late-arriving USB MIDI cable during rehearsal or service reconnects automatically within ~1.5 seconds without restarting the app.
+- **Live Activity Indicator**: The header MIDI monitor flashes green with the decoded note/CC, velocity, and channel on every tap.
+
+## One-Click MIDI Learn
+
+<Steps>
+1. Click **MIDI Assign** in the top bar (buttons highlight with learn badges).
+2. Click any on-screen control: **Play/Stop**, **Loop**, **Section Tile**, **Prev/Next Song**, **Pad Toggle**, or any stem/click fader (`Map Knob`).
+3. Tap your physical footswitch, keyboard key, drum pad, or turn a fader/knob.
+4. Click **MIDI Assign** again to lock your bindings.
+</Steps>
+
+### Supported Trigger Behaviors
+
+| Behavior | Best For | How It Works |
+| :--- | :--- | :--- |
+| **Momentary** | Play/Stop, Section Jumps, Next/Prev Song | Fires when button press value > `0` |
+| **Toggle** | Infinite Loop, Click Mute, Pad Toggle | Flips state when CC value > `64` |
+| **Continuous** | Stem Levels, Click Volume, Master Gain | Maps `0–127` smoothly across `0.0–1.0` |
+
+## Example 6-Button Stage Pedalboard Layout
+
+Ideal for Morningstar MC6, Hotone Ampero Control, or Line 6 Helix:
+
+```text
+┌──────────────────────┬──────────────────────┬──────────────────────┐
+│     [ Switch A ]     │     [ Switch B ]     │     [ Switch C ]     │
+│     PREV SECTION     │    INFINITE LOOP     │     NEXT SECTION     │
+├──────────────────────┼──────────────────────┼──────────────────────┤
+│     [ Switch D ]     │     [ Switch E ]     │     [ Switch F ]     │
+│     PLAY / STOP      │     CHORUS JUMP      │     BRIDGE JUMP      │
+└──────────────────────┴──────────────────────┴──────────────────────┘
+```
+
+<Aside type="tip">
+  MIDI bindings are saved locally to `~/.psalm-stage/midi-profile.json` rather than inside song folders—so each worship leader's pedalboard setup stays portable across church song libraries.
+</Aside>

@@ -1,7 +1,9 @@
-# Psalm Stage
+<p align="center">
+  <img src="public/psalm-stage-banner.svg" alt="Psalm Stage Logo" width="840" style="max-width: 100%; border-radius: 16px;" />
+</p>
 
 <p align="center">
-  <strong>High-Performance Live Worship Multitrack Playback & Hardware Controller</strong><br>
+  <strong>High-Performance Live Worship Multitrack Playback & Stage Hardware Controller</strong><br>
   Built with <strong>Tauri v2</strong>, <strong>Rust</strong>, <strong>Angular 22</strong>, <strong>Tailwind CSS v4</strong>, and <strong>Spartan-ng (<code>vega</code>)</strong>.
 </p>
 
@@ -9,8 +11,15 @@
   <img src="https://img.shields.io/badge/Rust-Audio_Core-orange?logo=rust" alt="Rust Audio Core" />
   <img src="https://img.shields.io/badge/Angular-22_Zoneless-red?logo=angular" alt="Angular 22" />
   <img src="https://img.shields.io/badge/Tauri-v2_Desktop-blue?logo=tauri" alt="Tauri v2" />
-  <img src="https://img.shields.io/badge/Tests-30_Passing-brightgreen" alt="Tests Passing" />
+  <img src="https://img.shields.io/badge/License-BSD_3--Clause-blue.svg" alt="BSD 3-Clause License" />
+  <img src="https://img.shields.io/badge/Tests-153_Passing-brightgreen" alt="Tests Passing" />
   <img src="https://img.shields.io/badge/DSP_Latency-0_ms_Native-purple" alt="Zero Latency Native" />
+</p>
+
+<p align="center">
+  <a href="https://adedayo.github.io/psalm-stage/"><strong>Website & User Documentation</strong></a> ·
+  <a href="https://github.com/adedayo/psalm-stage/releases"><strong>Download Installers</strong></a> ·
+  <a href="CONTRIBUTING.md"><strong>Contributing</strong></a>
 </p>
 
 ---
@@ -34,7 +43,7 @@
 
 > **No developer setup or terminal required!** Psalm Stage is distributed as standard, self-contained desktop installers for church laptops.
 
-Visit the [**GitHub Releases**](https://github.com/dayo-a/psalm-stage/releases) page to download the latest release:
+Visit the [**GitHub Releases**](https://github.com/adedayo/psalm-stage/releases) page (or the [**Psalm Stage Website**](https://adedayo.github.io/psalm-stage/)) to download the latest release:
 
 | Platform | Installer Download | Installation Steps |
 | :--- | :--- | :--- |
@@ -201,6 +210,7 @@ Explore the deep architectural and operational guides in `docs/`:
 * [docs/HARDWARE_WIRING_GUIDE.md](docs/HARDWARE_WIRING_GUIDE.md) — Audio interface setup, passive DI boxes, digital console routing.
 * [docs/MIDI_MAPPING_GUIDE.md](docs/MIDI_MAPPING_GUIDE.md) — Pedalboard layouts, MIDI message kinds, troubleshooting.
 * [docs/SONG_BUNDLE_FORMAT.md](docs/SONG_BUNDLE_FORMAT.md) — Full manifest specification, codecs, and directory layout.
+* [docs/TOOLCHAIN_SETUP_GUIDE.md](docs/TOOLCHAIN_SETUP_GUIDE.md) — Optional macOS, Windows, and Linux setup for `yt-dlp`, `ffmpeg`, UVR (`audio-separator`), and `demucs`.
 * [docs/TESTING_STRATEGY.md](docs/TESTING_STRATEGY.md) — Headless DSP test methodology, float drift assertions, CI matrix.
 
 ---
@@ -256,4 +266,4 @@ npm run build
 
 ## License
 
-Psalm Stage is released under the MIT License. Open source, community owned, and built for the worship team.
+Psalm Stage is released under the [BSD 3-Clause License](LICENSE). Copyright © 2026 Dr. Dayo Adetoye. Open source, community owned, and built for worship teams.

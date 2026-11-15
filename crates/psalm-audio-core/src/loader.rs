@@ -2,7 +2,9 @@ use std::collections::HashMap;
 use std::f32::consts::TAU;
 use std::fs::File;
 use std::path::Path;
+use std::sync::Arc;
 
+use serde::{Deserialize, Serialize};
 use symphonia::core::audio::SampleBuffer;
 use symphonia::core::codecs::DecoderOptions;
 use symphonia::core::errors::Error as SymphoniaError;
@@ -11,7 +13,7 @@ use symphonia::core::io::MediaSourceStream;
 use symphonia::core::meta::MetadataOptions;
 use symphonia::core::probe::Hint;
 
-use crate::manifest::{SectionDef, SongManifest, StemDef};
+use crate::manifest::{SectionDef, SetlistManifest, SetlistSlotKind, SongManifest, StemDef};
 use crate::{AudioCoreError, Result};
 
 /// Decoded stereo interleaved PCM (`[L, R, L, R, ...]`) normalized to the active device sample rate.
@@ -23,7 +25,7 @@ pub struct DecodedStem {
     pub gain: f32,
     pub muted: bool,
     /// Interleaved stereo samples at `LoadedSong::sample_rate`.
-    pub samples: Vec<f32>,
+    pub samples: Arc<Vec<f32>>,
 }
 
 impl DecodedStem {
@@ -38,6 +40,282 @@ pub struct LoadedSong {
     pub sample_rate: u32,
     pub stems: Vec<DecodedStem>,
     pub total_frames: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InspectedSongBundle {
+    pub dir: String,
+    pub has_existing_manifest: bool,
+    pub estimated_duration_sec: f64,
+    pub available_files: Vec<String>,
+    pub manifest: SongManifest,
+}
+
+const SUPPORTED_AUDIO_EXTENSIONS: [&str; 4] = ["wav", "flac", "ogg", "mp3"];
+
+/// Classifies a stem name into `(pitched, is_cues, default_gain)`.
+pub fn classify_stem_filename(stem_name: &str) -> (bool, bool, f32) {
+    let lower = stem_name.to_ascii_lowercase();
+    if lower.contains("cue")
+        || lower.contains("guide")
+        || lower.contains("click")
+        || lower.contains("count")
+    {
+        return (false, true, 0.85);
+    }
+    if lower.contains("drum")
+        || lower.contains("kick")
+        || lower.contains("snare")
+        || lower.contains("perc")
+        || lower.contains("hat")
+        || lower.contains("tom")
+        || lower.contains("loop")
+        || lower.contains("tamb")
+        || lower.contains("shaker")
+        || lower.contains("clap")
+        || lower.contains("clave")
+        || lower.contains("bell")
+        || lower.contains("agogo")
+        || lower.contains("conga")
+        || lower.contains("djembe")
+        || lower.contains("cajon")
+    {
+        return (false, false, 0.95);
+    }
+    (true, false, 0.9)
+}
+
+fn sanitize_slug(input: &str) -> String {
+    let mut out = String::with_capacity(input.len());
+    let mut last_dash = false;
+    for ch in input.chars() {
+        if ch.is_ascii_alphanumeric() {
+            out.push(ch.to_ascii_lowercase());
+            last_dash = false;
+        } else if !last_dash && !out.is_empty() {
+            out.push('-');
+            last_dash = true;
+        }
+    }
+    while out.ends_with('-') {
+        out.pop();
+    }
+    if out.is_empty() {
+        "song-bundle".to_string()
+    } else {
+        out
+    }
+}
+
+pub fn discover_audio_files(dir: &Path) -> Result<Vec<String>> {
+    if !dir.exists() || !dir.is_dir() {
+        return Err(AudioCoreError::Manifest(format!(
+            "Directory does not exist: {}",
+            dir.display()
+        )));
+    }
+    let mut files = Vec::new();
+    for entry in std::fs::read_dir(dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        let Some(file_name) = path.file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
+        if file_name.starts_with('.') {
+            continue;
+        }
+        let Some(ext) = path.extension().and_then(|e| e.to_str()) else {
+            continue;
+        };
+        if SUPPORTED_AUDIO_EXTENSIONS
+            .iter()
+            .any(|supported| ext.eq_ignore_ascii_case(supported))
+        {
+            files.push(file_name.to_string());
+        }
+    }
+    files.sort_by_key(|a| a.to_ascii_lowercase());
+    Ok(files)
+}
+
+/// Probes duration in seconds via container metadata without performing full PCM decode when possible.
+pub fn probe_audio_duration_sec(path: &Path) -> Result<f64> {
+    let file = File::open(path).map_err(|e| {
+        AudioCoreError::Decode(format!("Failed to open stem {}: {e}", path.display()))
+    })?;
+    let mss = MediaSourceStream::new(Box::new(file), Default::default());
+    let mut hint = Hint::new();
+    if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+        hint.with_extension(ext);
+    }
+    let probed = symphonia::default::get_probe()
+        .format(
+            &hint,
+            mss,
+            &FormatOptions::default(),
+            &MetadataOptions::default(),
+        )
+        .map_err(|e| {
+            AudioCoreError::Decode(format!("Unsupported format {}: {e}", path.display()))
+        })?;
+    let format = probed.format;
+    let track = format
+        .default_track()
+        .ok_or_else(|| AudioCoreError::Decode(format!("No audio track in {}", path.display())))?;
+    let sr = track.codec_params.sample_rate.unwrap_or(48_000) as f64;
+    if let Some(n_frames) = track.codec_params.n_frames {
+        if sr > 0.0 {
+            return Ok(n_frames as f64 / sr);
+        }
+    }
+    Ok(0.0)
+}
+
+/// Scans a song folder and returns either its existing `manifest.json` or an auto-classified draft manifest.
+pub fn inspect_song_folder(dir: &Path) -> Result<InspectedSongBundle> {
+    let available_files = discover_audio_files(dir)?;
+    let manifest_path = dir.join("manifest.json");
+    let has_existing_manifest = manifest_path.exists();
+
+    let mut max_duration_sec = 0.0_f64;
+    for fname in &available_files {
+        if let Ok(dur) = probe_audio_duration_sec(&dir.join(fname)) {
+            if dur > max_duration_sec {
+                max_duration_sec = dur;
+            }
+        }
+    }
+
+    let manifest = if has_existing_manifest {
+        SongManifest::from_file(&manifest_path)?
+    } else {
+        if available_files.is_empty() {
+            return Err(AudioCoreError::Manifest(format!(
+                "No supported audio stems (wav/flac/ogg/mp3) found in {}",
+                dir.display()
+            )));
+        }
+
+        let folder_name = dir
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("New Worship Song")
+            .to_string();
+        let slug = sanitize_slug(&folder_name);
+
+        let mut stems = HashMap::new();
+        for fname in &available_files {
+            let raw_stem_name = Path::new(fname)
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("stem");
+            let mut key = sanitize_slug(raw_stem_name).replace('-', "_");
+            if key.is_empty() {
+                key = "stem".into();
+            }
+            while stems.contains_key(&key) {
+                key.push('_');
+            }
+            let (pitched, is_cues, default_gain) = classify_stem_filename(raw_stem_name);
+            stems.insert(
+                key,
+                StemDef::Detailed {
+                    file: fname.clone(),
+                    pitched,
+                    is_cues: Some(is_cues),
+                    default_gain,
+                    muted: false,
+                },
+            );
+        }
+
+        let default_bpm = 120.0_f64;
+        let seconds_per_bar = (60.0 / default_bpm) * 4.0;
+        let est_bars = if max_duration_sec > 0.5 {
+            ((max_duration_sec / seconds_per_bar).ceil() as u32).max(8)
+        } else {
+            32
+        };
+
+        SongManifest {
+            id: slug,
+            title: folder_name,
+            artist: String::new(),
+            bpm: default_bpm,
+            time_signature: [4, 4],
+            first_downbeat_sec: 0.0,
+            original_key: "Unknown".into(),
+            click_mode: crate::manifest::ClickMode::AlwaysOn,
+            provenance: None,
+            sections: vec![
+                SectionDef {
+                    id: "intro".into(),
+                    name: "Intro".into(),
+                    start_bar: 1,
+                    end_bar: 5,
+                    start_sec: None,
+                    end_sec: None,
+                    color: Some("slate".into()),
+                },
+                SectionDef {
+                    id: "main".into(),
+                    name: "Main Arrangement".into(),
+                    start_bar: 5,
+                    end_bar: (est_bars + 1).max(9),
+                    start_sec: None,
+                    end_sec: None,
+                    color: Some("emerald".into()),
+                },
+            ],
+            stems,
+        }
+    };
+
+    Ok(InspectedSongBundle {
+        dir: dir.to_string_lossy().to_string(),
+        has_existing_manifest,
+        estimated_duration_sec: max_duration_sec,
+        available_files,
+        manifest,
+    })
+}
+
+pub fn save_song_manifest(dir: &Path, manifest: &SongManifest) -> Result<()> {
+    manifest.validate()?;
+    if manifest.title.trim().is_empty() {
+        return Err(AudioCoreError::Manifest(
+            "Song title cannot be empty".into(),
+        ));
+    }
+    if manifest.stems.is_empty() {
+        return Err(AudioCoreError::Manifest(
+            "At least one stem is required in manifest.json".into(),
+        ));
+    }
+    let manifest_path = dir.join("manifest.json");
+    let json = serde_json::to_string_pretty(manifest)
+        .map_err(|e| AudioCoreError::Manifest(format!("Failed to serialize manifest: {e}")))?;
+    std::fs::write(&manifest_path, json)?;
+    Ok(())
+}
+
+pub fn save_setlist_manifest(path: &Path, setlist: &SetlistManifest) -> Result<()> {
+    setlist.validate()?;
+    let json = serde_json::to_string_pretty(setlist)
+        .map_err(|e| AudioCoreError::Manifest(format!("Failed to serialize setlist: {e}")))?;
+    std::fs::write(path, json)?;
+    Ok(())
+}
+
+pub fn load_setlist_manifest(path: &Path) -> Result<SetlistManifest> {
+    let raw = std::fs::read_to_string(path)?;
+    let setlist: SetlistManifest = serde_json::from_str(&raw)
+        .map_err(|e| AudioCoreError::Manifest(format!("{}: {e}", path.display())))?;
+    setlist.validate()?;
+    Ok(setlist)
 }
 
 pub fn load_song_from_dir(dir: &Path, target_sample_rate: u32) -> Result<LoadedSong> {
@@ -78,8 +356,8 @@ pub fn load_song_from_dir(dir: &Path, target_sample_rate: u32) -> Result<LoadedS
             pitched: stem_def.is_pitched(&key),
             is_cues: stem_def.is_cues(&key),
             gain: default_gain,
-            muted: false,
-            samples,
+            muted: stem_def.is_muted(),
+            samples: Arc::new(samples),
         });
     }
 
@@ -299,7 +577,9 @@ pub fn generate_demo_song(sample_rate: u32) -> LoadedSong {
         StemDef::Detailed {
             file: "drums.wav".into(),
             pitched: false,
+            is_cues: Some(false),
             default_gain: 0.9,
+            muted: false,
         },
     );
     stems_map.insert(
@@ -307,7 +587,9 @@ pub fn generate_demo_song(sample_rate: u32) -> LoadedSong {
         StemDef::Detailed {
             file: "bass.wav".into(),
             pitched: true,
+            is_cues: Some(false),
             default_gain: 0.9,
+            muted: false,
         },
     );
     stems_map.insert(
@@ -315,7 +597,9 @@ pub fn generate_demo_song(sample_rate: u32) -> LoadedSong {
         StemDef::Detailed {
             file: "music.wav".into(),
             pitched: true,
+            is_cues: Some(false),
             default_gain: 0.9,
+            muted: false,
         },
     );
 
@@ -327,13 +611,16 @@ pub fn generate_demo_song(sample_rate: u32) -> LoadedSong {
         time_signature: [4, 4],
         first_downbeat_sec: 0.0,
         original_key: "G".into(),
-        beats: vec![],
+        click_mode: crate::manifest::ClickMode::AlwaysOn,
+        provenance: None,
         sections: vec![
             SectionDef {
                 id: "intro".into(),
                 name: "Intro".into(),
                 start_bar: 1,
                 end_bar: 5,
+                start_sec: None,
+                end_sec: None,
                 color: Some("slate".into()),
             },
             SectionDef {
@@ -341,6 +628,8 @@ pub fn generate_demo_song(sample_rate: u32) -> LoadedSong {
                 name: "Verse 1".into(),
                 start_bar: 5,
                 end_bar: 13,
+                start_sec: None,
+                end_sec: None,
                 color: Some("sky".into()),
             },
             SectionDef {
@@ -348,6 +637,8 @@ pub fn generate_demo_song(sample_rate: u32) -> LoadedSong {
                 name: "Chorus".into(),
                 start_bar: 13,
                 end_bar: 21,
+                start_sec: None,
+                end_sec: None,
                 color: Some("emerald".into()),
             },
             SectionDef {
@@ -355,6 +646,8 @@ pub fn generate_demo_song(sample_rate: u32) -> LoadedSong {
                 name: "Bridge".into(),
                 start_bar: 21,
                 end_bar: 29,
+                start_sec: None,
+                end_sec: None,
                 color: Some("amber".into()),
             },
             SectionDef {
@@ -362,6 +655,8 @@ pub fn generate_demo_song(sample_rate: u32) -> LoadedSong {
                 name: "Outro".into(),
                 start_bar: 29,
                 end_bar: 33,
+                start_sec: None,
+                end_sec: None,
                 color: Some("violet".into()),
             },
         ],
@@ -378,7 +673,7 @@ pub fn generate_demo_song(sample_rate: u32) -> LoadedSong {
                 is_cues: false,
                 gain: 0.9,
                 muted: false,
-                samples: drums,
+                samples: Arc::new(drums),
             },
             DecodedStem {
                 name: "bass".into(),
@@ -386,7 +681,7 @@ pub fn generate_demo_song(sample_rate: u32) -> LoadedSong {
                 is_cues: false,
                 gain: 0.9,
                 muted: false,
-                samples: bass,
+                samples: Arc::new(bass),
             },
             DecodedStem {
                 name: "music".into(),
@@ -394,9 +689,79 @@ pub fn generate_demo_song(sample_rate: u32) -> LoadedSong {
                 is_cues: false,
                 gain: 0.9,
                 muted: false,
-                samples: music,
+                samples: Arc::new(music),
             },
         ],
+        total_frames,
+    }
+}
+
+/// Builds a lightweight zero-stem `LoadedSong` for standalone `PadOnly` or `PercussionGroove`
+/// setlist slots (no external audio bundle required).
+pub fn generate_standalone_slot_song(
+    song_id: &str,
+    title: &str,
+    key: &str,
+    bpm: f64,
+    time_signature: [u8; 2],
+    slot_kind: SetlistSlotKind,
+    sample_rate: u32,
+) -> LoadedSong {
+    let safe_bpm = if bpm.is_finite() {
+        bpm.clamp(30.0, 260.0)
+    } else {
+        80.0
+    };
+    let bpb = time_signature[0].max(1);
+    let safe_ts = [bpb, time_signature[1].max(1)];
+    // 8-bar continuous loop window for bar/beat counter display
+    let loop_sec = (60.0 / safe_bpm) * (bpb as f64) * 8.0;
+    let total_frames = ((loop_sec * sample_rate as f64).round() as usize).max(sample_rate as usize);
+    let click_mode = match slot_kind {
+        SetlistSlotKind::PadOnly => crate::manifest::ClickMode::Off,
+        _ => crate::manifest::ClickMode::AlwaysOn,
+    };
+    let section_name = match slot_kind {
+        SetlistSlotKind::PadOnly => "Sustain",
+        _ => "Groove",
+    };
+
+    let manifest = SongManifest {
+        id: song_id.to_string(),
+        title: title.to_string(),
+        artist: match slot_kind {
+            SetlistSlotKind::PadOnly => "Ambient Pad Underscore".to_string(),
+            _ => "Live Percussion Groove".to_string(),
+        },
+        bpm: safe_bpm,
+        time_signature: safe_ts,
+        first_downbeat_sec: 0.0,
+        original_key: if key.trim().is_empty() {
+            "C".to_string()
+        } else {
+            key.trim().to_string()
+        },
+        click_mode,
+        provenance: None,
+        sections: vec![SectionDef {
+            id: "loop".into(),
+            name: section_name.into(),
+            start_bar: 1,
+            end_bar: 9,
+            start_sec: None,
+            end_sec: None,
+            color: Some(match slot_kind {
+                SetlistSlotKind::PadOnly => "cyan".into(),
+                _ => "amber".into(),
+            }),
+        }],
+        stems: HashMap::new(),
+    };
+
+    LoadedSong {
+        manifest,
+        sample_rate,
+        stems: Vec::new(),
         total_frames,
     }
 }
@@ -426,5 +791,77 @@ mod tests {
         let input = vec![0.0, 0.0, 1.0, 1.0]; // 2 frames stereo
         let resampled = resample_stereo_linear(&input, 44100, 88200);
         assert_eq!(resampled.len(), 8); // 4 frames stereo
+    }
+
+    fn write_test_wav(path: &Path, sample_rate: u32, frames: usize) {
+        let data_bytes = (frames * 2 * 2) as u32;
+        let riff_size = 36 + data_bytes;
+        let byte_rate = sample_rate * 4;
+        let mut buf = Vec::with_capacity(44 + data_bytes as usize);
+        buf.extend_from_slice(b"RIFF");
+        buf.extend_from_slice(&riff_size.to_le_bytes());
+        buf.extend_from_slice(b"WAVEfmt ");
+        buf.extend_from_slice(&16u32.to_le_bytes()); // PCM chunk size
+        buf.extend_from_slice(&1u16.to_le_bytes()); // PCM format
+        buf.extend_from_slice(&2u16.to_le_bytes()); // stereo
+        buf.extend_from_slice(&sample_rate.to_le_bytes());
+        buf.extend_from_slice(&byte_rate.to_le_bytes());
+        buf.extend_from_slice(&4u16.to_le_bytes()); // block align
+        buf.extend_from_slice(&16u16.to_le_bytes()); // bits per sample
+        buf.extend_from_slice(b"data");
+        buf.extend_from_slice(&data_bytes.to_le_bytes());
+        buf.resize(44 + data_bytes as usize, 0);
+        std::fs::write(path, buf).expect("write test wav");
+    }
+
+    #[test]
+    fn test_stem_classification_heuristics() {
+        assert_eq!(classify_stem_filename("Cues"), (false, true, 0.85));
+        assert_eq!(classify_stem_filename("guide_track"), (false, true, 0.85));
+        assert_eq!(classify_stem_filename("Drums"), (false, false, 0.95));
+        assert_eq!(classify_stem_filename("Percussion"), (false, false, 0.95));
+        assert_eq!(classify_stem_filename("Bass"), (true, false, 0.9));
+        assert_eq!(classify_stem_filename("EG1"), (true, false, 0.9));
+        assert_eq!(classify_stem_filename("Keys_Pad"), (true, false, 0.9));
+    }
+
+    #[test]
+    fn test_inspect_song_folder_synthesizes_draft_manifest_and_roundtrips() {
+        let dir = std::env::temp_dir().join(format!(
+            "psalm_stage_inspect_test_{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+
+        // 4 seconds of audio at 48kHz
+        write_test_wav(&dir.join("Drums.wav"), 48000, 48000 * 4);
+        write_test_wav(&dir.join("Keys.wav"), 48000, 48000 * 4);
+        write_test_wav(&dir.join("Guide_Cues.wav"), 48000, 48000 * 4);
+
+        let inspected = inspect_song_folder(&dir).expect("inspect song folder");
+        assert!(!inspected.has_existing_manifest);
+        assert!(inspected.estimated_duration_sec >= 3.9);
+        assert_eq!(inspected.available_files.len(), 3);
+        assert_eq!(inspected.manifest.stems.len(), 3);
+        assert!(!inspected.manifest.stems["drums"].is_pitched("drums"));
+        assert!(inspected.manifest.stems["keys"].is_pitched("keys"));
+        assert!(inspected.manifest.stems["guide_cues"].is_cues("guide_cues"));
+
+        // Save manifest and confirm round-trip loading
+        save_song_manifest(&dir, &inspected.manifest).expect("save manifest");
+        let inspected2 = inspect_song_folder(&dir).expect("re-inspect saved");
+        assert!(inspected2.has_existing_manifest);
+
+        let loaded = load_song_from_dir(&dir, 48000).expect("load saved song bundle");
+        assert_eq!(loaded.stems.len(), 3);
+        assert_eq!(loaded.total_frames, 48000 * 4);
+
+        // Validation check: empty title or bad section rejects save
+        let mut invalid = inspected.manifest.clone();
+        invalid.title = "  ".into();
+        assert!(save_song_manifest(&dir, &invalid).is_err());
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

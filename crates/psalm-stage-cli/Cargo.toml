@@ -1,0 +1,18 @@
+[package]
+name = "psalm-stage-cli"
+version = "0.1.0"
+edition = "2024"
+license = "BSD-3-Clause"
+repository = "https://github.com/adedayo/psalm-stage"
+description = "Headless CLI and stdio MCP server for Psalm Stage AI setlist and workbench automation"
+
+[[bin]]
+name = "psalm-stage-cli"
+path = "src/main.rs"
+
+[dependencies]
+psalm-audio-core = { path = "../psalm-audio-core" }
+psalm-workbench = { path = "../psalm-workbench" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+

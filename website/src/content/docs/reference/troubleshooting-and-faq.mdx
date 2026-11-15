@@ -1,0 +1,43 @@
+---
+title: Troubleshooting, Safety & License
+description: Common stage fixes, supported platforms roadmap, BSD 3-Clause license details, and community links.
+---
+
+## Supported Platforms & Roadmap
+
+| Platform | Status in `v0.1.0` | Package Formats |
+| :--- | :--- | :--- |
+| **macOS (Apple Silicon & Intel)** | Supported | `.dmg` / `.pkg` / `install.sh` |
+| **Windows 10 / 11 (x64)** | Supported | `.exe` (NSIS) / `.msi` |
+| **Linux (x64)** | Supported | `.AppImage` / `.deb` |
+| **iOS & Android** | Planned (Future Milestone) | Tracked on the post-`v0.1.0` roadmap |
+
+---
+
+## Stage Troubleshooting
+
+### Click Track Is Audible in the House PA Speakers
+1. Check your audio interface's **Direct Monitor** knob/button and turn it **OFF**.
+2. On macOS, open **System Settings → Accessibility → Audio** and turn **"Play stereo audio as mono"** **OFF**.
+3. On your stage mixer, verify Channel 2 (Right output) is **unassigned** from the Main LR FOH bus and routed only to IEM sends.
+
+### macOS Says "App Cannot Be Opened"
+Because Psalm Stage is distributed free without a paid Apple Developer subscription:
+- Run the 1-line installer (`curl -fsSL https://raw.githubusercontent.com/adedayo/psalm-stage/main/install.sh | bash`), **or**
+- Go to **System Settings → Privacy & Security** after your first launch attempt and click **Open Anyway**.
+
+### Audio Glitches or Dropouts on Stage
+- Always plug the laptop into AC wall power (battery mode aggressively throttles CPU frequencies).
+- Engage **Live Lock** before the service starts to keep the screen awake and lock out heavy editing tabs.
+
+### `yt-dlp` or `ffmpeg` Not Found in Import Workbench
+Open **Import Workbench → Optional Toolchain Setup**, click **Re-Scan**, or click **Browse…** to point directly to the installed binary. See [Import Workbench & Song Bundles](/psalm-stage/workbench/import-and-stems/).
+
+---
+
+## License & Community
+
+- **License**: [BSD 3-Clause License](https://github.com/adedayo/psalm-stage/blob/main/LICENSE) — Copyright © 2026 Dr. Dayo Adetoye.
+- **Source Code & Releases**: [github.com/adedayo/psalm-stage](https://github.com/adedayo/psalm-stage)
+- **Contributing**: See [CONTRIBUTING.md](https://github.com/adedayo/psalm-stage/blob/main/CONTRIBUTING.md) (Conventional Commits + Rust/Angular test requirements).
+- **Security Issues**: Please report vulnerabilities privately via [SECURITY.md](https://github.com/adedayo/psalm-stage/blob/main/SECURITY.md).

@@ -26,12 +26,33 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
-      - name: Run Rust workspace unit tests (25 tests)
+      - name: Run Rust workspace unit tests
         run: cargo test --workspace
 
-      - name: Run Angular frontend unit tests (7 tests)
+      - name: Run Angular frontend unit tests
         run: npx ng test --watch=false
 
       - name: Verify Angular production build
         run: npm run build
 
+  website:
+    name: Verify Website & Docs Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js (v22)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: website/package-lock.json
+
+      - name: Install website dependencies
+        working-directory: website
+        run: npm ci
+
+      - name: Build Astro + Starlight site
+        working-directory: website
+        run: npm run build

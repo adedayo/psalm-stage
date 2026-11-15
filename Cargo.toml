@@ -1,6 +1,8 @@
 [workspace]
 members = [
   "crates/psalm-audio-core",
+  "crates/psalm-workbench",
+  "crates/psalm-stage-cli",
   "src-tauri",
 ]
 resolver = "2"

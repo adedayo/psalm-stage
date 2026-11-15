@@ -1,12 +1,24 @@
 {
   "name": "psalm-stage",
-  "version": "0.0.0",
+  "version": "0.1.0",
+  "license": "BSD-3-Clause",
+  "homepage": "https://adedayo.github.io/psalm-stage/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/adedayo/psalm-stage.git"
+  },
+  "bugs": {
+    "url": "https://github.com/adedayo/psalm-stage/issues"
+  },
   "scripts": {
     "ng": "ng",
     "prestart": "lsof -ti:4200 | xargs kill -9 2>/dev/null || true",
     "start": "ng serve",
     "kill-port": "lsof -ti:4200 | xargs kill -9 2>/dev/null || true",
     "build": "ng build",
+    "prepare:sidecar": "node scripts/prepare-cli-sidecar.mjs",
+    "prepare:sidecar:debug": "node scripts/prepare-cli-sidecar.mjs --debug",
+    "build:desktop": "npm run prepare:sidecar && ng build",
     "package": "ng build && tauri build",
     "package:debug": "ng build && tauri build --debug",
     "watch": "ng build --watch --configuration development",
@@ -26,6 +38,7 @@
     "@spartan-ng/brain": "^1.9.0",
     "@tailwindcss/postcss": "^4.3.5",
     "@tauri-apps/api": "^2.12.4",
+    "@tauri-apps/plugin-dialog": "^2.8.4",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "postcss": "^8.5.32",

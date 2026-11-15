@@ -1,0 +1,68 @@
+---
+title: Psalm Stage
+description: Open-source, zero-latency live worship multitrack player, sample-accurate click, tonic pads, percussion loops, and MIDI stage controller.
+template: splash
+hero:
+  tagline: Deterministic live worship multitrack playback, sample-accurate metronome, ambient pads, percussion groove studio, and hardware MIDI control — free and open source under BSD 3-Clause.
+  image:
+    file: ../../assets/psalm-stage-logo.svg
+  actions:
+    - text: Download & Install
+      link: /psalm-stage/getting-started/installation/
+      icon: right-arrow
+    - text: 5-Minute Quick Start
+      link: /psalm-stage/getting-started/quick-start/
+      variant: secondary
+    - text: GitHub Releases
+      link: https://github.com/adedayo/psalm-stage/releases
+      variant: minimal
+      icon: external
+---
+
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+<div class="hero-banner-wrap">
+  <img src="/psalm-stage/psalm-stage-banner.svg" alt="Psalm Stage Banner" />
+</div>
+
+## Built for Sunday Morning Reliability
+
+<CardGrid>
+  <Card title="Zero-Latency Native Audio Core" icon="rocket">
+    Written in Rust (`psalm-audio-core`). At native tempo and key, audio streams bit-perfect with zero spectral latency. When transposing or stretching tempo, click and cues stay sample-locked frame-for-frame.
+  </Card>
+  <Card title="Universal Split L/R & Multi-Out" icon="setting">
+    Run on any 2-channel USB interface (Left = FOH Music, Right = IEM Click + Cues) or expand to multi-output interfaces (18i20, X32/M32, Dante) with per-bus routing.
+  </Card>
+  <Card title="Live Stage, Loops & Tonic Pads" icon="star">
+    Jump quantized sections on the fly, arm infinite loops for ministry moments, blend multi-layer 12-key ambient pads, and layer live Afrobeat, Makossa, Woro, Funk, or Worship percussion grooves.
+  </Card>
+  <Card title="MIDI Pedalboards, Workbench & AI" icon="laptop">
+    Plug-and-play Omni MIDI with 1.5s hotplug, one-click MIDI Learn, built-in Import Workbench for song stems, and a headless CLI + MCP server for AI-assisted Sunday setlist planning.
+  </Card>
+</CardGrid>
+
+## Jump Straight Into the Docs
+
+<CardGrid>
+  <LinkCard
+    title="Installers for macOS, Windows & Linux"
+    description="No terminal or developer tools required. Includes macOS Sequoia Gatekeeper and Windows SmartScreen steps."
+    href="/psalm-stage/getting-started/installation/"
+  />
+  <LinkCard
+    title="Stage Hardware & Focusrite Split L/R Wiring"
+    description="Cable your laptop, audio interface, passive DI boxes, and mixing console safely so click never leaks to FOH."
+    href="/psalm-stage/hardware/audio-routing/"
+  />
+  <LinkCard
+    title="MIDI Keyboards & Stage Pedalboard Mapping"
+    description="Set up Morningstar, Line 6 Helix, Hotone, or USB keyboards in seconds with persistent local profiles."
+    href="/psalm-stage/hardware/midi-controllers/"
+  />
+  <LinkCard
+    title="Import Workbench & AI Setlist Automation"
+    description="Prepare song bundles from local stems or YouTube, and connect Claude/Antigravity via psalm-stage-cli MCP."
+    href="/psalm-stage/workbench/import-and-stems/"
+  />
+</CardGrid>

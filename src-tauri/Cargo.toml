@@ -2,8 +2,10 @@
 name = "psalm-stage"
 version = "0.1.0"
 description = "Psalm Stage — Worship live multitrack, click, and MIDI performance app"
-authors = ["Psalm Stage Contributors"]
-license = "MIT"
+authors = ["Dr. Dayo Adetoye", "Psalm Stage Contributors"]
+license = "BSD-3-Clause"
+repository = "https://github.com/adedayo/psalm-stage"
+homepage = "https://adedayo.github.io/psalm-stage/"
 edition = "2024"
 rust-version = "1.90"
 
@@ -16,9 +18,11 @@ tauri-build = { version = "2.7.4", features = [] }
 
 [dependencies]
 psalm-audio-core = { path = "../crates/psalm-audio-core" }
+psalm-workbench = { path = "../crates/psalm-workbench" }
 midir = "0.10"
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
 tauri = { version = "2.12.5", features = [] }
+tauri-plugin-dialog = "2"
 tauri-plugin-log = "2"

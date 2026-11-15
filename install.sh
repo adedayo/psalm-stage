@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Turnkey One-Line Installer for Psalm Stage on macOS
-# Usage: curl -fsSL https://raw.githubusercontent.com/dayo-a/psalm-stage/main/install.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/adedayo/psalm-stage/main/install.sh | bash
 
 set -e
 
@@ -14,7 +14,7 @@ echo ""
 if [ "$(uname -s)" != "Darwin" ]; then
     echo "This installation script is for macOS."
     echo "For Windows, please download the .exe installer from:"
-    echo "https://github.com/dayo-a/psalm-stage/releases/latest"
+    echo "https://github.com/adedayo/psalm-stage/releases/latest"
     exit 1
 fi
 
@@ -29,7 +29,7 @@ else
 fi
 
 echo "Fetching latest release from GitHub..."
-REPO="dayo-a/psalm-stage"
+REPO="adedayo/psalm-stage"
 LATEST_TAG=$(curl -s "https://api.github.com/repos/$REPO/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
 
 if [ -z "$LATEST_TAG" ]; then
@@ -78,3 +78,4 @@ echo ""
 
 # Launch application
 open "/Applications/Psalm Stage.app"
+

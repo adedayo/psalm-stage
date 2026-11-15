@@ -89,4 +89,158 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  :where(button:not(:disabled)) {
+    cursor: pointer;
+    transition:
+      box-shadow 150ms ease-out,
+      background-color 140ms ease-out,
+      border-color 140ms ease-out,
+      color 140ms ease-out,
+      opacity 140ms ease-out,
+      filter 140ms ease-out,
+      scale 120ms cubic-bezier(0.2, 0.9, 0.3, 1);
+  }
+
+  :where(button:not(:disabled)):hover {
+    box-shadow: 0 2px 10px rgb(0 0 0 / 0.28);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    :where(button:not(:disabled)):active {
+      scale: 0.95;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :where(button:not(:disabled)):active {
+      scale: 1;
+      filter: brightness(0.92);
+    }
+  }
+
+  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+@property --arc-start {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@property --arc-end {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 158deg;
+}
+
+@property --psalm-dash-animation {
+  syntax: '*';
+  inherits: false;
+  initial-value: , psalm-spinner-dash 2.4s ease-in-out infinite;
+}
+
+progress.psalm-btn-spinner:indeterminate::-webkit-progress-bar,
+progress.psalm-btn-spinner:indeterminate::-webkit-progress-value,
+progress.psalm-btn-spinner:indeterminate::-moz-progress-bar {
+  display: none;
+  background: none;
+}
+
+progress.psalm-btn-spinner:indeterminate {
+  --_from: calc(90deg + var(--arc-start, 0deg));
+  --_to: calc(90deg + var(--arc-end, 158deg));
+  --size: 13px;
+  --thickness: 2px;
+  --spinner-color: currentColor;
+  --track-color: rgb(255 255 255 / 0.18);
+  --_used-spinner-duration: 1s;
+
+  display: inline-block;
+  flex-shrink: 0;
+  width: var(--size);
+  height: var(--size);
+  border-radius: 50%;
+  appearance: none;
+  border: 0;
+  background: conic-gradient(
+      from var(--_from),
+      var(--spinner-color) calc(var(--_to) - var(--_from)),
+      transparent 0
+    )
+    var(--track-color);
+
+  @supports (background-clip: border-area) {
+    background-clip: border-area;
+    border: var(--thickness) solid transparent;
+    background-origin: border-box;
+  }
+
+  @supports not (background-clip: border-area) {
+    --clip-boundary: calc(100% - var(--thickness));
+    mask-image: radial-gradient(
+      farthest-side,
+      transparent var(--clip-boundary),
+      black var(--clip-boundary)
+    );
+  }
+
+  @media (forced-colors: active) {
+    forced-color-adjust: none;
+    --spinner-color: CanvasText;
+    --track-color: Canvas;
+  }
+
+  animation:
+    psalm-spinner-rotate var(--_used-spinner-duration) linear infinite
+    var(--psalm-dash-animation, );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  progress.psalm-btn-spinner:indeterminate {
+    --_used-spinner-duration: 6s;
+    --psalm-dash-animation: ;
+    --arc-end: 158deg;
+  }
+}
+
+@keyframes psalm-spinner-rotate {
+  to {
+    rotate: 1turn;
+  }
+}
+
+@keyframes psalm-spinner-dash {
+  from {
+    --arc-start: 0deg;
+    --arc-end: 20deg;
+  }
+  50% {
+    --arc-start: 100deg;
+    --arc-end: 340deg;
+  }
+  to {
+    --arc-start: 360deg;
+    --arc-end: 380deg;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .psalm-reveal {
+    animation: psalm-reveal-in 180ms ease-out both;
+  }
+
+  @keyframes psalm-reveal-in {
+    from {
+      opacity: 0;
+      translate: 0 4px;
+    }
+    to {
+      opacity: 1;
+      translate: 0 0;
+    }
+  }
 }

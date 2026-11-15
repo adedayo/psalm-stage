@@ -1,0 +1,811 @@
+<div class="flex flex-col gap-4">
+  @if (stage.externalSyncNotice() && !stage.liveLockActive()) {
+  <div data-testid="external-sync-banner"
+    class="rounded-xl border border-cyan-500/40 bg-cyan-950/35 px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+    <div class="flex items-center gap-2 text-cyan-200">
+      <span class="h-2 w-2 rounded-full bg-cyan-400"></span>
+      <span>{{ stage.externalSyncNotice() }}</span>
+    </div>
+    <div class="flex items-center gap-2">
+      @if (stage.managedSetlists().length > 0) {
+      <button hlmBtn size="xs" type="button" class="bg-cyan-600 hover:bg-cyan-500 text-white"
+        (click)="loadManagedSetlist(stage.managedSetlists()[0])">
+        Load Latest Setlist
+      </button>
+      }
+      <button hlmBtn variant="ghost" size="xs" type="button" (click)="stage.dismissExternalSyncNotice()">
+        Dismiss
+      </button>
+    </div>
+  </div>
+  }
+
+  <!-- Studio Header Bar -->
+  <div
+    class="rounded-xl border border-zinc-800 bg-zinc-900/90 px-4 py-3 flex flex-wrap items-center justify-between gap-3 shadow-sm">
+    <div>
+      <div class="flex items-center gap-2.5">
+        <h2 class="text-base font-semibold tracking-tight text-zinc-100">Rapid Setlist Creation Studio</h2>
+        <span hlmBadge variant="outline" class="border-amber-500/40 text-amber-300 text-[10px]">
+          {{ stage.libraryEntries().length }} Songs Indexed
+        </span>
+      </div>
+      <p class="text-xs text-zinc-400">
+        Drag or click songs from your Library to arrange your worship flow, set keys & tempos, and cue transitions.
+      </p>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-2">
+      <button hlmBtn variant="outline" size="sm" type="button" data-testid="toggle-saved-setlists"
+        (click)="showSavedSetlists.set(!showSavedSetlists())">
+        Saved Setlists ({{ stage.managedSetlists().length }})
+      </button>
+      <button hlmBtn variant="outline" size="sm" type="button" data-testid="toggle-ai-setup"
+        (click)="toggleAiSetup()">
+        AI Harness Setup
+      </button>
+      <button hlmBtn variant="outline" size="sm" type="button"
+        (click)="showLibrarySettings.set(!showLibrarySettings())">
+        Library Folders
+      </button>
+      <button hlmBtn variant="secondary" size="sm" type="button" (click)="newInWorkbench.emit()">
+        + Import / Separate Audio
+      </button>
+      <button hlmBtn size="sm" type="button" class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold"
+        (click)="goLive.emit()">
+        Go Live Stage →
+      </button>
+    </div>
+  </div>
+
+  <!-- Collapsible Saved Setlists Drawer -->
+  @if (showSavedSetlists()) {
+  <div hlmCard class="bg-zinc-900 border-zinc-800" data-testid="saved-setlists-drawer">
+    <div hlmCardContent class="pt-4 space-y-3 text-xs">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <div class="text-sm font-semibold text-zinc-100">Managed Setlists</div>
+          <div class="font-mono text-[11px] text-zinc-400">
+            {{ stage.libraryConfig().setlists_root || '~/Music/PsalmStage/Setlists' }}
+          </div>
+        </div>
+        <button hlmBtn variant="outline" size="xs" type="button" (click)="stage.refreshManagedSetlists()">
+          Refresh
+        </button>
+      </div>
+
+      @if (stage.managedSetlists().length === 0) {
+      <p class="text-zinc-400 py-2">
+        No saved setlists found in your managed Setlists folder yet. Save one from Studio or create one via your AI harness.
+      </p>
+      } @else {
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+        @for (sl of stage.managedSetlists(); track sl.path) {
+        <div
+          class="rounded-lg border border-zinc-800 bg-zinc-950/90 px-3 py-2.5 flex items-center justify-between gap-3">
+          <div class="min-w-0">
+            <div class="font-semibold text-zinc-100 truncate">{{ sl.name }}</div>
+            <div class="text-[11px] text-zinc-400 truncate">
+              {{ sl.song_count }} songs • ~{{ formatDuration(sl.total_estimated_sec) }}
+            </div>
+            <div class="text-[10px] font-mono text-zinc-500 truncate">{{ sl.path }}</div>
+          </div>
+          <button hlmBtn size="xs" type="button" class="bg-amber-500 hover:bg-amber-400 text-zinc-950 font-semibold shrink-0"
+            (click)="loadManagedSetlist(sl)">
+            Load
+          </button>
+        </div>
+        }
+      </div>
+      }
+    </div>
+  </div>
+  }
+
+  <!-- Collapsible AI Harness Setup Panel -->
+  @if (showAiSetup()) {
+  <div hlmCard class="bg-zinc-900 border-zinc-800" data-testid="ai-harness-setup-panel">
+    <div hlmCardContent class="pt-4 space-y-3 text-xs">
+      @if (stage.aiHarnessInfo(); as ai) {
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-semibold text-zinc-100">AI Harness Setup (MCP + CLI + Skill)</span>
+            <span hlmBadge variant="outline"
+              [class]="ai.cli_available ? 'border-emerald-500/40 text-emerald-300 text-[10px]' : 'border-amber-500/40 text-amber-300 text-[10px]'">
+              {{ ai.cli_available ? 'Bundled CLI Ready' : 'Sidecar Pending Build' }}
+            </span>
+          </div>
+          <div class="font-mono text-[11px] text-zinc-400 mt-0.5">{{ ai.cli_path }}</div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <button hlmBtn variant="secondary" size="xs" type="button"
+            (click)="copyAiText('mcp', ai.mcp_config_json)">
+            {{ copiedAiLabel() === 'mcp' ? 'Copied MCP JSON!' : 'Copy MCP Config' }}
+          </button>
+          <button hlmBtn variant="outline" size="xs" type="button"
+            (click)="copyAiText('skill', ai.skill_markdown)">
+            {{ copiedAiLabel() === 'skill' ? 'Copied SKILL.md!' : 'Copy Skill (SKILL.md)' }}
+          </button>
+          @if (ai.symlink_supported) {
+          <button hlmBtn variant="outline" size="xs" type="button" (click)="stage.installCliSymlink()">
+            {{ ai.symlink_installed ? 'Relink ~/.local/bin' : 'Install CLI to ~/.local/bin' }}
+          </button>
+          }
+        </div>
+      </div>
+
+      <pre
+        class="rounded-lg border border-zinc-800 bg-zinc-950 p-3 font-mono text-[11px] text-zinc-300 overflow-x-auto">{{ ai.mcp_config_json }}</pre>
+      }
+    </div>
+  </div>
+  }
+
+  <!-- Collapsible Library Folders Manager -->
+  @if (showLibrarySettings()) {
+  <div hlmCard class="bg-zinc-900 border-zinc-800">
+    <div hlmCardContent class="pt-4 space-y-3 text-xs">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <div class="text-[11px] uppercase tracking-wider text-zinc-500">Primary Library Root</div>
+          <div class="font-mono text-zinc-200 mt-0.5">{{ stage.libraryConfig().library_root }}</div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button hlmBtn variant="outline" size="xs" type="button" (click)="changeLibraryRootViaPicker()">
+            Change Root
+          </button>
+          <button hlmBtn variant="outline" size="xs" type="button" (click)="stage.ensureLibraryRoot()">
+            Create & Scan
+          </button>
+        </div>
+      </div>
+
+      <div class="border-t border-zinc-800 pt-3 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <div class="text-[11px] uppercase tracking-wider text-zinc-500">Managed Setlists Folder</div>
+          <div class="font-mono text-zinc-200 mt-0.5">
+            {{ stage.libraryConfig().setlists_root || '~/Music/PsalmStage/Setlists' }}
+          </div>
+        </div>
+        <button hlmBtn variant="outline" size="xs" type="button" (click)="changeSetlistsRootViaPicker()">
+          Change Setlists Folder
+        </button>
+      </div>
+
+      <div class="border-t border-zinc-800 pt-3 space-y-2">
+        <div class="text-[11px] uppercase tracking-wider text-zinc-500">Extra Linked Song Folders</div>
+        <div class="flex flex-wrap gap-2">
+          <input type="text"
+            class="flex-1 min-w-[220px] rounded border border-zinc-700 bg-zinc-950 px-2.5 py-1.5 font-mono text-zinc-100"
+            placeholder="/path/to/external-multitracks" [ngModel]="linkFolderInput()"
+            (ngModelChange)="linkFolderInput.set($event)" />
+          <button hlmBtn variant="secondary" size="xs" type="button" (click)="linkFolderFromInput()">
+            Link Path
+          </button>
+          <button hlmBtn variant="outline" size="xs" type="button" (click)="linkNewFolderViaPicker()">
+            Browse Folder…
+          </button>
+        </div>
+
+        @if (stage.libraryConfig().linked_folders.length > 0) {
+        <div class="flex flex-wrap gap-1.5 pt-1">
+          @for (folder of stage.libraryConfig().linked_folders; track folder) {
+          <span
+            class="inline-flex items-center gap-1.5 rounded-md border border-zinc-700 bg-zinc-950 px-2.5 py-1 font-mono text-[11px] text-zinc-300">
+            {{ folder }}
+            <button type="button" class="text-zinc-500 hover:text-red-400 cursor-pointer"
+              (click)="stage.unlinkLibraryFolder(folder)">
+              ×
+            </button>
+          </span>
+          }
+        </div>
+        }
+      </div>
+    </div>
+  </div>
+  }
+
+  <!-- Two-Pane Rapid Studio Workspace -->
+  <div class="grid grid-cols-1 xl:grid-cols-12 gap-4 items-start">
+    <!-- Left Pane: Searchable Song Library -->
+    <section class="xl:col-span-5 rounded-xl border border-zinc-800 bg-zinc-900 flex flex-col overflow-hidden">
+      <div class="p-3.5 border-b border-zinc-800 space-y-2.5 bg-zinc-900/95">
+        <div class="flex items-center justify-between gap-2">
+          <h3 class="text-sm font-semibold text-zinc-100">Song Library</h3>
+          <button hlmBtn variant="ghost" size="xs" type="button" [attr.aria-busy]="stage.libraryScanning()"
+            (click)="stage.refreshLibrary()">
+            @if (stage.libraryScanning()) {
+            <progress aria-label="Scanning library" class="psalm-btn-spinner"></progress>
+            <span>Scanning…</span>
+            } @else {
+            <span>Rescan</span>
+            }
+          </button>
+        </div>
+
+        <input type="text"
+          class="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-xs text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-amber-500/60"
+          placeholder="Search songs, artists, keys, or stems…" [ngModel]="searchQuery()"
+          (ngModelChange)="searchQuery.set($event)" />
+
+        <div class="flex flex-wrap items-center justify-between gap-2 text-[11px]">
+          <div class="inline-flex rounded-md border border-zinc-800 bg-zinc-950 p-0.5">
+            @for (st of ['All', 'Ready', 'NeedsSetup']; track st) {
+            <button type="button" class="px-2 py-1 rounded transition-colors cursor-pointer"
+              [class]="statusFilter() === st ? 'bg-zinc-800 text-amber-300 font-semibold' : 'text-zinc-400 hover:text-zinc-200'"
+              (click)="statusFilter.set($any(st))">
+              {{ st === 'NeedsSetup' ? 'Needs Setup' : st }}
+            </button>
+            }
+          </div>
+
+          <div class="flex items-center gap-1.5">
+            <select class="rounded border border-zinc-800 bg-zinc-950 px-2 py-1 text-zinc-200" [ngModel]="keyFilter()"
+              (ngModelChange)="keyFilter.set($event)">
+              <option value="All">All Keys</option>
+              @for (k of songKeyOptions; track k) {
+              <option [value]="k">Key {{ k }}</option>
+              }
+            </select>
+            <select class="rounded border border-zinc-800 bg-zinc-950 px-2 py-1 text-zinc-200" [ngModel]="sortBy()"
+              (ngModelChange)="sortBy.set($event)">
+              <option value="title">Sort: Title</option>
+              <option value="bpm">Sort: BPM</option>
+              <option value="key">Sort: Key</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div cdkDropList id="studio-library-list" [cdkDropListConnectedTo]="['studio-setlist-drop']"
+        [cdkDropListSortingDisabled]="true" class="p-3 space-y-2 max-h-[640px] overflow-y-auto">
+        @if (filteredLibrary().length === 0) {
+        <div class="rounded-lg border border-dashed border-zinc-800 bg-zinc-950/60 p-6 text-center space-y-2">
+          <p class="text-xs text-zinc-400">No matching songs found in your Library.</p>
+          <button hlmBtn variant="outline" size="xs" type="button" (click)="newInWorkbench.emit()">
+            Import Audio or YouTube Track
+          </button>
+        </div>
+        } @else {
+        @for (entry of filteredLibrary(); track entry.dir) {
+        <div cdkDrag [cdkDragData]="entry"
+          class="group rounded-lg border border-zinc-800 bg-zinc-950/90 hover:border-amber-500/50 p-3 transition-all space-y-2">
+          <div class="flex items-start justify-between gap-2">
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-2">
+                <span class="h-2 w-2 rounded-full shrink-0" [class]="entry.status === 'Ready'
+                        ? 'bg-emerald-400'
+                        : entry.status === 'NeedsSetup'
+                          ? 'bg-amber-400'
+                          : 'bg-red-500'"></span>
+                <h4 class="text-sm font-semibold text-zinc-100 truncate">{{ entry.title }}</h4>
+                @if (entry.provenance?.needs_review) {
+                <span hlmBadge variant="outline" data-testid="library-review-badge"
+                  [title]="(entry.provenance?.review_notes ?? []).join(' ') || 'Verify Bar 1 downbeat and sections in Workbench'"
+                  class="border-cyan-500/40 bg-cyan-500/10 text-cyan-300 text-[10px] shrink-0">
+                  Review Needed
+                </span>
+                }
+              </div>
+              <p class="text-[11px] text-zinc-400 truncate mt-0.5">
+                {{ entry.artist || 'Local Multitrack Bundle' }}
+                • {{ formatDuration(entry.estimated_duration_sec) }}
+              </p>
+            </div>
+
+            <div class="flex items-center gap-1 shrink-0">
+              <span
+                class="rounded bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.5 text-[11px] font-mono font-semibold text-amber-300">
+                {{ entry.original_key }}
+              </span>
+              <span class="rounded bg-zinc-800 px-1.5 py-0.5 text-[11px] font-mono text-zinc-300">
+                {{ entry.bpm | number: '1.0-0' }} BPM
+              </span>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex flex-wrap items-center gap-1">
+              @for (stem of entry.stem_names.slice(0, 5); track stem) {
+              <span class="rounded bg-zinc-900 border border-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-400">
+                {{ stem }}
+              </span>
+              }
+              @if (entry.stem_names.length > 5) {
+              <span class="text-[10px] text-zinc-500">+{{ entry.stem_names.length - 5 }}</span>
+              }
+            </div>
+
+            <div class="flex items-center gap-1.5">
+              <button hlmBtn variant="ghost" size="xs" type="button" (click)="openInWorkbench.emit(entry.dir)">
+                {{ entry.status === 'NeedsSetup' ? 'Setup in Workbench' : 'Edit' }}
+              </button>
+              <button hlmBtn size="xs" type="button" [disabled]="entry.status === 'MissingStems'"
+                class="bg-amber-500 hover:bg-amber-400 text-zinc-950 font-semibold" (click)="addSongToSetlist(entry)">
+                + Add to Set
+              </button>
+            </div>
+          </div>
+        </div>
+        }
+        }
+      </div>
+    </section>
+
+    <!-- Right Pane: Active Setlist Timeline & Flow Builder -->
+    <section class="xl:col-span-7 rounded-xl border border-zinc-800 bg-zinc-900 flex flex-col overflow-hidden">
+      <div class="p-3.5 border-b border-zinc-800 flex flex-wrap items-center justify-between gap-3 bg-zinc-900/95">
+        <div class="flex flex-wrap items-center gap-2.5 min-w-0">
+          <input type="text"
+            class="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-1.5 text-sm font-semibold text-zinc-100 w-56 focus:outline-none focus:ring-1 focus:ring-amber-500/60"
+            [ngModel]="snap().setlist_name"
+            (ngModelChange)="stage.sendCommand({ type: 'SetSetlistName', payload: $event })" />
+          <div class="flex items-center gap-2 text-xs text-zinc-400 font-mono">
+            <span>{{ snap().setlist_items.length }} Songs</span>
+            <span>•</span>
+            <span class="text-emerald-400 font-semibold">
+              ~{{ formatDuration(totalSetlistDurationSec()) }}
+            </span>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-1.5">
+          <button hlmBtn variant="outline" size="xs" type="button" (click)="addStandaloneOpen.set(!addStandaloneOpen())">
+            + Pad / Groove Slot
+          </button>
+          <button hlmBtn variant="outline" size="xs" type="button" (click)="openSetlistFile()">
+            Open .json
+          </button>
+          <button hlmBtn variant="outline" size="xs" type="button" [disabled]="snap().setlist_items.length === 0"
+            (click)="saveSetlistFile()">
+            Save .json
+          </button>
+          <button hlmBtn variant="ghost" size="xs" type="button" [disabled]="snap().setlist_items.length === 0"
+            (click)="clearSetlist()">
+            Clear
+          </button>
+        </div>
+      </div>
+
+      <!-- Service Section Manager & Multi-Select Bar -->
+      <div class="px-3.5 py-2 border-b border-zinc-800/80 bg-zinc-950/60 flex flex-wrap items-center justify-between gap-2 text-xs">
+        <div class="flex flex-wrap items-center gap-1.5">
+          <select class="rounded border border-zinc-700 bg-zinc-900 px-1.5 py-1 text-zinc-200"
+            [ngModel]="newSectionKind()" (ngModelChange)="newSectionKind.set($event)">
+            @for (preset of sectionPresetOptions; track preset.kind) {
+            <option [value]="preset.kind">{{ preset.label }}</option>
+            }
+          </select>
+          <input type="text" placeholder="Section label..."
+            class="w-32 rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-zinc-200"
+            [ngModel]="newSectionName()" (ngModelChange)="newSectionName.set($event)" />
+          <button hlmBtn variant="outline" size="xs" type="button" (click)="addServiceSection()">
+            + Section
+          </button>
+          @for (sec of snap().setlist_sections; track sec.id) {
+          <span class="inline-flex items-center gap-1 rounded-full border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-[11px]"
+            [style.borderColor]="sec.color || '#f59e0b'">
+            <span>{{ sec.name }}</span>
+            <button type="button" class="text-zinc-400 hover:text-red-400 cursor-pointer" (click)="removeServiceSection(sec.id)">×</button>
+          </span>
+          }
+        </div>
+
+        @if (snap().setlist_items.length > 0) {
+        <div class="flex items-center gap-1.5">
+          @if (selectedStudioSlots().length > 0) {
+          <button hlmBtn variant="ghost" size="xs" type="button" (click)="selectedStudioSlots.set([])">
+            Clear ({{ selectedStudioSlots().length }})
+          </button>
+          } @else {
+          <span class="text-[11px] text-zinc-500">Check boxes to batch-edit</span>
+          }
+        </div>
+        }
+      </div>
+
+      @if (addStandaloneOpen()) {
+      <div class="px-3.5 py-2.5 border-b border-cyan-500/30 bg-cyan-950/20 flex flex-wrap items-end gap-2 text-xs">
+        <select class="rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-zinc-100"
+          [ngModel]="newStandaloneKind()" (ngModelChange)="newStandaloneKind.set($event)">
+          <option value="PadOnly">Pad Only (Sermon / Prayer)</option>
+          <option value="PercussionGroove">Percussion Groove Only</option>
+        </select>
+        <input type="text" placeholder="Title" class="flex-1 min-w-[120px] rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-zinc-100"
+          [ngModel]="newStandaloneTitle()" (ngModelChange)="newStandaloneTitle.set($event)" />
+        <select class="rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-zinc-100"
+          [ngModel]="newStandaloneKey()" (ngModelChange)="newStandaloneKey.set($event)">
+          @for (k of chromaticKeys; track k) {
+          <option [value]="k">{{ k }}</option>
+          <option [value]="k + 'm'">{{ k }}m</option>
+          }
+        </select>
+        <input type="number" min="30" max="260" class="w-16 rounded border border-zinc-700 bg-zinc-950 px-2 py-1 font-mono text-zinc-100"
+          [ngModel]="newStandaloneBpm()" (ngModelChange)="newStandaloneBpm.set($event)" />
+        <select class="rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-zinc-100"
+          [ngModel]="newStandaloneTimeSig()" (ngModelChange)="newStandaloneTimeSig.set($event)">
+          <option value="4/4">4/4</option>
+          <option value="6/8">6/8</option>
+          <option value="12/8">12/8</option>
+          <option value="3/4">3/4</option>
+        </select>
+        @if (snap().setlist_sections.length > 0) {
+        <select class="rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-zinc-100"
+          [ngModel]="newStandaloneSectionId()" (ngModelChange)="newStandaloneSectionId.set($event)">
+          <option value="">Unsectioned</option>
+          @for (sec of snap().setlist_sections; track sec.id) {
+          <option [value]="sec.id">{{ sec.name }}</option>
+          }
+        </select>
+        }
+        <button hlmBtn size="xs" type="button" class="bg-cyan-500 text-zinc-950 hover:bg-cyan-400 font-semibold"
+          (click)="createStandaloneSlot()">
+          Add Slot
+        </button>
+      </div>
+      }
+
+      @if (selectedStudioSlots().length > 0) {
+      <div class="px-3.5 py-2 border-b border-amber-500/40 bg-amber-500/10 flex flex-wrap items-center gap-1.5 text-xs">
+        <span class="font-semibold text-amber-200 mr-1">Batch ({{ selectedStudioSlots().length }}):</span>
+        <select class="rounded border border-zinc-700 bg-zinc-950 px-1.5 py-1 text-zinc-100"
+          [ngModel]="batchTargetKey()" (ngModelChange)="onStudioBatchKeyChange($event)">
+          <option value="">Key...</option>
+          @for (k of chromaticKeys; track k) {
+          <option [value]="k">{{ k }}</option>
+          <option [value]="k + 'm'">{{ k }}m</option>
+          }
+        </select>
+        <input type="text" placeholder="BPM" data-testid="studio-batch-bpm" class="w-16 rounded border border-zinc-700 bg-zinc-950 px-1.5 py-1 font-mono text-zinc-100"
+          [ngModel]="batchBpm()" (ngModelChange)="onStudioBatchBpmChange($event)" />
+        <select class="rounded border border-zinc-700 bg-zinc-950 px-1.5 py-1 text-zinc-100"
+          [ngModel]="batchClickMode()" (ngModelChange)="onStudioBatchClickChange($event)">
+          <option value="">Click...</option>
+          <option value="AlwaysOn">Click On</option>
+          <option value="IntroOnly">Intro Only</option>
+          <option value="Off">Click Off</option>
+        </select>
+        <select class="rounded border border-zinc-700 bg-zinc-950 px-1.5 py-1 text-zinc-100"
+          [ngModel]="batchPadEnabled()" (ngModelChange)="onStudioBatchPadChange($event)">
+          <option value="">Pad...</option>
+          <option value="on">Pad ON</option>
+          <option value="off">Pad OFF</option>
+        </select>
+        <input type="number" step="0.5" min="0" max="10" placeholder="Xf s" data-testid="studio-batch-crossfade"
+          class="w-14 rounded border border-zinc-700 bg-zinc-950 px-1.5 py-1 font-mono text-zinc-100"
+          [ngModel]="batchCrossfadeSec()" (ngModelChange)="onStudioBatchCrossfadeChange($event)" />
+        <select class="rounded border border-zinc-700 bg-zinc-950 px-1.5 py-1 text-zinc-100"
+          [ngModel]="batchSectionId()" (ngModelChange)="onStudioBatchSectionChange($event)">
+          <option value="">Section...</option>
+          <option value="__none__">Unsectioned</option>
+          @for (sec of snap().setlist_sections; track sec.id) {
+          <option [value]="sec.id">{{ sec.name }}</option>
+          }
+        </select>
+        <select class="rounded border border-zinc-700 bg-zinc-950 px-1.5 py-1 text-zinc-100"
+          [ngModel]="batchPercussionMode()" (ngModelChange)="onStudioBatchPercChange($event)">
+          <option value="">Perc...</option>
+          <option value="Off">Perc Off</option>
+          <option value="Layer">Perc Layer</option>
+          <option value="PercussionOnly">Perc Only</option>
+        </select>
+        <select aria-label="Studio Batch Percussion Style" data-testid="studio-batch-perc-style"
+          class="rounded border border-zinc-700 bg-zinc-950 px-1.5 py-1 text-zinc-100"
+          [ngModel]="batchPercussionStyle()" (ngModelChange)="onStudioBatchPercStyleChange($event)">
+          <option value="">Style...</option>
+          @if (unsavedCustomLoopPattern(); as unsavedLoop) {
+            <optgroup label="Active Custom Loop">
+              <option [value]="'custom:' + unsavedLoop.id">
+                ★ {{ unsavedLoop.name }} ({{ unsavedLoop.bars_in_cycle }}B)
+              </option>
+            </optgroup>
+          }
+          @if (stage.percussionLoops().length > 0) {
+            <optgroup label="Custom Loops">
+              @for (lp of stage.percussionLoops(); track lp.id) {
+                <option [value]="'custom:' + lp.id">★ {{ lp.name }} ({{ lp.bars_in_cycle }}B)</option>
+              }
+            </optgroup>
+          }
+          <optgroup label="Built-In Styles">
+            @for (st of percussionStyleOptions; track st.value) {
+              <option [value]="st.value">{{ st.label }}</option>
+            }
+          </optgroup>
+        </select>
+        <button hlmBtn size="xs" type="button" class="bg-amber-500 text-zinc-950 hover:bg-amber-400 font-semibold"
+          (click)="applyStudioBatchEdit()">
+          Apply
+        </button>
+      </div>
+      }
+
+      <div cdkDropList id="studio-setlist-drop" [cdkDropListData]="snap().setlist_items"
+        (cdkDropListDropped)="onDropOnSetlist($event)"
+        class="p-4 space-y-2 min-h-[420px] max-h-[640px] overflow-y-auto">
+        @if (snap().setlist_items.length === 0) {
+        <div
+          class="h-64 rounded-xl border-2 border-dashed border-zinc-800 bg-zinc-950/50 flex flex-col items-center justify-center p-6 text-center gap-2">
+          <div class="text-sm font-semibold text-zinc-300">Build Your Service Flow</div>
+          <p class="text-xs text-zinc-500 max-w-md">
+            Drag any song from the Library on the left—or click <strong>+ Add to Set</strong>—to stack songs, transpose
+            keys, configure ambient pad bridges, and queue transitions.
+          </p>
+        </div>
+        } @else {
+        @for (item of snap().setlist_items; track item.slot; let idx = $index) {
+        @let isActive = snap().active_setlist_slot === item.slot;
+        @let isSelected = selectedStudioSlot() === item.slot;
+        @if (isSectionBoundary(idx); as secHead) {
+        <div class="px-2.5 py-1 rounded-md border border-zinc-800 bg-zinc-900/90 text-[11px] font-semibold uppercase tracking-wider text-zinc-200 flex items-center justify-between"
+          [style.borderLeft]="'4px solid ' + (secHead.color || '#f59e0b')">
+          <span>{{ secHead.name }} ({{ secHead.kind }})</span>
+        </div>
+        }
+
+        <div cdkDrag class="rounded-xl border transition-all p-3.5 space-y-3" [class]="isActive
+                ? 'border-emerald-500/70 bg-emerald-500/10 shadow-sm'
+                : isSelected
+                  ? 'border-amber-500/60 bg-zinc-950'
+                  : 'border-zinc-800 bg-zinc-950/90 hover:border-zinc-700'"
+          (click)="selectedStudioSlot.set(item.slot)">
+          <!-- Slot Row Header -->
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <button type="button" cdkDragHandle
+                class="cursor-grab active:cursor-grabbing text-zinc-500 hover:text-zinc-200 px-1 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-xs font-mono"
+                title="Drag to reorder">
+                ⋮⋮
+              </button>
+              <input type="checkbox"
+                [checked]="isStudioSlotChecked(item.slot)"
+                (click)="onToggleStudioMultiSelect(item.slot, $event)"
+                class="h-3.5 w-3.5 accent-amber-500 cursor-pointer shrink-0"
+                aria-label="Select slot for batch edit" />
+              <span
+                class="h-6 w-6 rounded-md bg-zinc-900 border border-zinc-800 flex items-center justify-center font-mono text-xs font-semibold text-zinc-300">
+                {{ item.slot + 1 }}
+              </span>
+              <div class="min-w-0">
+                <div class="flex items-center gap-2">
+                  <span class="text-sm font-semibold text-zinc-100 truncate">{{ item.title }}</span>
+                  @if (item.slot_kind === 'PadOnly') {
+                  <span hlmBadge variant="outline" class="border-sky-500/40 bg-sky-500/10 text-sky-300 text-[10px]">
+                    Pad Underscore
+                  </span>
+                  } @else if (item.slot_kind === 'PercussionGroove') {
+                  <span hlmBadge variant="outline" class="border-amber-500/40 bg-amber-500/10 text-amber-300 text-[10px]">
+                    Percussion Groove
+                  </span>
+                  }
+                  @if (isActive) {
+                  <span hlmBadge class="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px]">
+                    CUED
+                  </span>
+                  }
+                  @if (slotNeedsReview(item)) {
+                  <span hlmBadge variant="outline" data-testid="slot-review-badge"
+                    class="border-cyan-500/40 bg-cyan-500/10 text-cyan-300 text-[10px]">
+                    Review Needed
+                  </span>
+                  }
+                </div>
+                <div class="text-[11px] font-mono text-zinc-400">
+                  Orig {{ item.original_key }} • {{ item.base_bpm | number: '1.0-0' }} BPM • {{ item.crossfade_sec | number: '1.0-1' }}s xfade
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-1">
+              <button hlmBtn variant="ghost" size="xs" type="button"
+                (click)="stage.sendCommand({ type: 'SelectSetlistSlot', payload: item.slot })">
+                Cue
+              </button>
+              <button hlmBtn variant="ghost" size="xs" type="button" (click)="duplicateSlot(item)"
+                title="Duplicate song slot (e.g. reprise)">
+                Dup
+              </button>
+              <button hlmBtn variant="ghost" size="xs" type="button" [disabled]="item.slot === 0"
+                (click)="moveSlot(item.slot, item.slot - 1)">
+                ↑
+              </button>
+              <button hlmBtn variant="ghost" size="xs" type="button"
+                [disabled]="item.slot === snap().setlist_items.length - 1" (click)="moveSlot(item.slot, item.slot + 1)">
+                ↓
+              </button>
+              <button hlmBtn variant="ghost" size="xs" type="button" class="text-zinc-400 hover:text-red-400"
+                (click)="removeSlot(item.slot)">
+                ×
+              </button>
+            </div>
+          </div>
+
+          <!-- Rapid Per-Slot Controls -->
+          <div class="grid grid-cols-1 sm:grid-cols-5 gap-2 pt-2 border-t border-zinc-800/80 text-xs">
+            <!-- Key Transpose -->
+            <div
+              class="rounded-lg border border-zinc-800 bg-zinc-900/70 px-2 py-1.5 flex items-center justify-between gap-1">
+              <span class="text-[10px] uppercase tracking-wider text-zinc-500">Key</span>
+              <div class="flex items-center gap-1">
+                <button type="button" class="h-5 w-5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-mono"
+                  (click)="adjustSlotKey(item, -1)">
+                  -
+                </button>
+                <select
+                  class="rounded bg-zinc-950 border border-zinc-700 px-1.5 py-0.5 font-mono font-semibold text-amber-300"
+                  [ngModel]="item.effective_key" (ngModelChange)="setSlotTargetKey(item, $event)">
+                  @for (k of songKeyOptions; track k) {
+                  <option [value]="k">{{ k }}</option>
+                  }
+                </select>
+                <button type="button" class="h-5 w-5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-mono"
+                  (click)="adjustSlotKey(item, 1)">
+                  +
+                </button>
+              </div>
+            </div>
+
+            <!-- BPM Override -->
+            <div
+              class="rounded-lg border border-zinc-800 bg-zinc-900/70 px-2 py-1.5 flex items-center justify-between gap-1">
+              <span class="text-[10px] uppercase tracking-wider text-zinc-500">BPM</span>
+              <input type="number" min="30" max="260" step="0.5"
+                data-testid="studio-slot-bpm"
+                class="w-16 rounded border border-zinc-700 bg-zinc-950 px-1.5 py-0.5 text-right font-mono text-zinc-100"
+                [ngModel]="item.effective_bpm" (ngModelChange)="setSlotBpm(item, $event)" />
+            </div>
+
+            <!-- Per-Song Click Mode -->
+            <div
+              class="rounded-lg border border-zinc-800 bg-zinc-900/70 px-2 py-1.5 flex items-center justify-between gap-1">
+              <span class="text-[10px] uppercase tracking-wider text-zinc-500">Click</span>
+              <select
+                data-testid="studio-slot-click-mode"
+                class="rounded border border-zinc-700 bg-zinc-950 px-1.5 py-0.5 text-[11px] text-zinc-200"
+                [ngModel]="item.effective_click_mode" (ngModelChange)="setSlotClickMode(item, $event)">
+                <option value="AlwaysOn">Always On</option>
+                <option value="IntroOnly">Intro Only</option>
+                <option value="Off">Off</option>
+              </select>
+            </div>
+
+            <!-- End-of-Song Flow -->
+            <div
+              class="rounded-lg border border-zinc-800 bg-zinc-900/70 px-2 py-1.5 flex items-center justify-between gap-1">
+              <span class="text-[10px] uppercase tracking-wider text-zinc-500">Flow</span>
+              <select class="rounded border border-zinc-700 bg-zinc-950 px-1.5 py-0.5 text-[11px] text-zinc-200"
+                [ngModel]="item.transition_mode" (ngModelChange)="setSlotTransitionMode(item, $event)">
+                <option value="AutoPause">AutoPause</option>
+                <option value="AutoAdvance">AutoAdvance</option>
+                <option value="ContinueUntilStopped">Continue Until Stopped</option>
+                <option value="Manual">Manual</option>
+              </select>
+            </div>
+
+            <!-- Crossfade Duration -->
+            <div
+              class="rounded-lg border border-zinc-800 bg-zinc-900/70 px-2 py-1.5 flex items-center justify-between gap-1">
+              <span class="text-[10px] uppercase tracking-wider text-zinc-500">Xfade (s)</span>
+              <input type="number" min="0" max="10" step="0.5"
+                class="w-14 rounded border border-zinc-700 bg-zinc-950 px-1.5 py-0.5 text-right font-mono text-zinc-100"
+                [ngModel]="item.crossfade_sec" (ngModelChange)="setSlotCrossfadeSec(item, $event)" />
+            </div>
+
+            <!-- Service Section -->
+            @if (snap().setlist_sections.length > 0) {
+            <div
+              class="rounded-lg border border-zinc-800 bg-zinc-900/70 px-2 py-1.5 flex items-center justify-between gap-1">
+              <span class="text-[10px] uppercase tracking-wider text-zinc-500">Section</span>
+              <select class="rounded border border-zinc-700 bg-zinc-950 px-1.5 py-0.5 text-[11px] text-zinc-200 max-w-[100px]"
+                [ngModel]="item.section_id ?? ''" (ngModelChange)="setSlotSection(item, $event)">
+                <option value="">None</option>
+                @for (sec of snap().setlist_sections; track sec.id) {
+                <option [value]="sec.id">{{ sec.name }}</option>
+                }
+              </select>
+            </div>
+            }
+
+            <!-- Percussion Mode & Style / Custom Loop -->
+            <div
+              class="rounded-lg border border-zinc-800 bg-zinc-900/70 px-2 py-1.5 flex flex-wrap items-center justify-between gap-1.5">
+              <span class="text-[10px] uppercase tracking-wider text-zinc-500">Perc</span>
+              <select aria-label="Slot Percussion Mode" class="rounded border border-zinc-700 bg-zinc-950 px-1.5 py-0.5 text-[11px] text-zinc-200"
+                [ngModel]="item.percussion_lock?.mode ?? 'Off'" (ngModelChange)="setSlotPercussionMode(item, $event)">
+                <option value="Off">Off</option>
+                <option value="Layer">Layer</option>
+                <option value="PercussionOnly">Perc Only</option>
+              </select>
+              <select
+                data-testid="slot-percussion-style-select"
+                aria-label="Slot Percussion Style or Custom Loop"
+                class="max-w-[140px] rounded border border-zinc-700 bg-zinc-950 px-1.5 py-0.5 text-[11px] text-zinc-200"
+                [ngModel]="slotPercussionGrooveValue(item)"
+                (ngModelChange)="setSlotPercussionGroove(item, $event)">
+                @if (item.percussion_lock?.custom_pattern; as activeCustom) {
+                  <optgroup label="Assigned Loop">
+                    <option [value]="'custom:' + activeCustom.id">★ {{ activeCustom.name }}</option>
+                  </optgroup>
+                }
+                @if (stage.percussionLoops().length > 0) {
+                  <optgroup label="Custom Loops">
+                    @for (lp of stage.percussionLoops(); track lp.id) {
+                      <option [value]="'custom:' + lp.id">★ {{ lp.name }}</option>
+                    }
+                  </optgroup>
+                }
+                <optgroup label="Built-In Styles">
+                  @for (opt of percussionStyleOptions; track opt.value) {
+                    <option [value]="'style:' + opt.value">{{ opt.label }}</option>
+                  }
+                </optgroup>
+              </select>
+            </div>
+
+            <!-- Pad Bridge & Preset Lock Status -->
+            <div class="flex items-center gap-1">
+              <button type="button"
+                class="flex-1 rounded-lg border px-2 py-1.5 flex items-center justify-between text-xs cursor-pointer transition-colors"
+                [class]="item.ambient_pad_enabled
+                      ? 'border-cyan-500/40 bg-cyan-500/10 text-cyan-300'
+                      : 'border-zinc-800 bg-zinc-900/70 text-zinc-400'" (click)="toggleSlotPad(item)">
+                <span class="text-[10px] uppercase tracking-wider">Pad</span>
+                <span class="font-semibold truncate max-w-[90px]">
+                  {{ item.pad_lock ? (item.pad_lock.preset_name || 'Locked') : (item.ambient_pad_enabled ? 'ON' : 'OFF') }}
+                </span>
+              </button>
+              @if (item.pad_lock) {
+                <button type="button"
+                  class="rounded-lg border border-amber-500/40 bg-amber-500/10 px-1.5 py-1.5 text-[10px] text-amber-300 cursor-pointer hover:bg-amber-500/20"
+                  title="Clear Pad Preset Lock (switch to Pass-Through)"
+                  (click)="clearSlotPadLock(item)">
+                  Unlock
+                </button>
+              }
+            </div>
+          </div>
+        </div>
+
+        <!-- Harmonic Transition Connector -->
+        @if (transitionBetween(idx); as bridge) {
+        <div class="flex items-center justify-center py-0.5">
+          <div class="inline-flex flex-wrap items-center gap-2 rounded-full border px-3 py-1 text-[11px]" [class]="bridge.tone === 'smooth'
+                    ? 'border-emerald-500/30 bg-emerald-950/30 text-emerald-300'
+                    : bridge.tone === 'lift'
+                      ? 'border-amber-500/30 bg-amber-950/30 text-amber-300'
+                      : 'border-zinc-700 bg-zinc-950 text-zinc-400'">
+            <span class="font-mono font-semibold">{{ bridge.label }}</span>
+            <span class="text-zinc-600">•</span>
+            <span>{{ item.transition_mode }}</span>
+            <span class="text-zinc-600">•</span>
+            <span class="text-cyan-300/90">{{ bridge.padBridge }}</span>
+          </div>
+        </div>
+        }
+        }
+        }
+      </div>
+
+      <!-- Arrangement Preview Footer for Selected Slot -->
+      @if (selectedSlotLibraryEntry(); as selEntry) {
+      <div
+        class="border-t border-zinc-800 bg-zinc-950/80 px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+        <div class="flex flex-wrap items-center gap-1.5">
+          <span class="text-zinc-500 font-medium mr-1">Arrangement:</span>
+          @for (sec of selEntry.section_names; track $index) {
+          <span class="rounded bg-zinc-900 border border-zinc-800 px-2 py-0.5 text-[11px] text-zinc-300">
+            {{ sec }}
+          </span>
+          }
+        </div>
+        <button hlmBtn variant="ghost" size="xs" type="button" (click)="openInWorkbench.emit(selEntry.dir)">
+          Edit Arrangement in Workbench →
+        </button>
+      </div>
+      }
+    </section>
+  </div>
+</div>

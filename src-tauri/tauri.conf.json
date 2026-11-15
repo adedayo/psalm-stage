@@ -7,7 +7,7 @@
     "frontendDist": "../dist/psalm-stage/browser",
     "devUrl": "http://localhost:4200",
     "beforeDevCommand": "npm run start",
-    "beforeBuildCommand": "npm run build"
+    "beforeBuildCommand": "npm run build:desktop"
   },
   "app": {
     "windows": [
@@ -28,10 +28,13 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "externalBin": [
+      "binaries/psalm-stage-cli"
+    ],
     "category": "AudioVideo",
     "shortDescription": "Live worship multitrack playback and stage hardware controller",
     "longDescription": "High-performance live worship multitrack playback, sample-accurate synthesized metronome, section jumping, infinite looping, and universal MIDI stage hardware controller.",
-    "copyright": "Copyright © 2026 Psalm Stage Contributors",
+    "copyright": "Copyright © 2026 Dr. Dayo Adetoye",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

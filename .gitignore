@@ -46,7 +46,13 @@ Thumbs.db
 # Rust target
 /target/
 src-tauri/target/
+/src-tauri/binaries/
 
 # Nx & local build cache
 /.nx/
+
+# Astro / Starlight website
+/website/node_modules/
+/website/dist/
+/website/.astro/
 

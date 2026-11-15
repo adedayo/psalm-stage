@@ -1,0 +1,49 @@
+name: Bug Report
+description: Report a stage audio, MIDI, UI, or workbench issue
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping make Psalm Stage rock-solid for live worship teams!
+  - type: input
+    id: version
+    attributes:
+      label: Psalm Stage Version
+      placeholder: "e.g. v0.1.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      options:
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+        - Windows 10 / 11
+        - Linux
+    validations:
+      required: true
+  - type: input
+    id: hardware
+    attributes:
+      label: Audio Interface & MIDI Hardware (if applicable)
+      placeholder: "e.g. Focusrite Scarlett 2i2, Morningstar MC6"
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Clear description of the bug and what you expected to happen.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      placeholder: |
+        1. Load a song or setlist...
+        2. Press Play...
+        3. Observe...
+    validations:
+      required: true

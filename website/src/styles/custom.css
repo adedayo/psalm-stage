@@ -1,0 +1,24 @@
+/* Stage-inspired high-contrast accent overrides for Starlight */
+:root {
+  --sl-font: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --sl-accent-low: #064e3b;
+  --sl-accent: #10b981;
+  --sl-accent-high: #6ee7b7;
+}
+
+:root[data-theme='light'] {
+  --sl-accent-low: #d1fae5;
+  --sl-accent: #059669;
+  --sl-accent-high: #064e3b;
+}
+
+.hero-banner-wrap {
+  margin: 1.5rem auto 2rem;
+  max-width: 840px;
+}
+
+.hero-banner-wrap img {
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid var(--sl-color-hairline);
+}

@@ -1,0 +1,82 @@
+---
+title: Import Workbench & Song Bundles
+description: Import local audio or YouTube songs, align Beat 1 and section markers on the waveform, and understand the open manifest.json format.
+---
+
+import { Tabs, TabItem, Aside } from '@astrojs/starlight/components';
+
+**Import Workbench** turns raw audio mixes, multi-stem folders, or YouTube reference links into ready-to-play Psalm Stage song bundles.
+
+## Importing Songs & Annotating Sections
+
+1. **Choose a Source**:
+   - **Open Local Folder / Audio Files**: Import `.wav`, `.flac`, `.ogg`, or `.mp3` stems directly.
+   - **YouTube URL Ingest** *(requires optional `yt-dlp` + `ffmpeg`)*: Search or paste a URL, extract clean audio, and index it into your library cache so previously downloaded tracks aren't re-fetched unless forced.
+   - **Optional AI Stem Separation** *(requires `audio-separator` / UVR or `demucs`)*: Split full mixes into 2, 4, or 6 stems (`vocals`, `drums`, `bass`, `other`, etc.)—or split externally in the UVR Desktop GUI and open the output folder.
+2. **Align Beat 1 & BPM on the Waveform**:
+   - Automatic analysis estimates BPM, key, and downbeats.
+   - Zoom up to **32x**, drag the **Bar 1 handle** or playhead cursor, use **Tap Tempo** (with half/double BPM scaling), or audition with live click alignment.
+3. **Annotate Song Sections**:
+   - Rapidly place, drag, extend, rename, and delete sections (`Intro`, `Verse`, `Chorus`, `Bridge`, `Outro`) with bar-accurate or decimal-second timing.
+4. **Publish to Library**: Saves a clean, self-contained folder with `manifest.json`.
+
+---
+
+## Optional Toolchain Setup (YouTube & Local AI Stems)
+
+Live playback never needs these tools. Install them only if you want YouTube downloads or in-app AI stem separation:
+
+<Tabs>
+  <TabItem label="macOS (Homebrew + pipx)">
+    ```bash
+    # YouTube & audio extraction
+    brew install ffmpeg yt-dlp
+
+    # Optional local UVR stem separation
+    brew install pipx
+    pipx ensurepath
+    pipx install "audio-separator[cpu]"
+    ```
+  </TabItem>
+  <TabItem label="Windows (winget + pipx)">
+    ```powershell
+    winget install Gyan.FFmpeg yt-dlp.yt-dlp
+    winget install Python.Python.3.11
+    pip install pipx
+    pipx ensurepath
+    # Reopen PowerShell, then install UVR CLI (use [gpu] for NVIDIA CUDA):
+    pipx install "audio-separator[cpu]"
+    ```
+  </TabItem>
+  <TabItem label="Linux (apt / dnf / pipx)">
+    ```bash
+    sudo apt update && sudo apt install -y ffmpeg pipx
+    pipx ensurepath
+    pipx install yt-dlp
+    pipx install "audio-separator[cpu]"
+    ```
+  </TabItem>
+</Tabs>
+
+After installing, open **Import Workbench → Optional Toolchain Setup → Re-Scan** (or use **Browse…** to point directly to any binary).
+
+---
+
+## Open Song Bundle Format (`manifest.json`)
+
+Psalm Stage stores no proprietary encrypted containers. Every song is a standard folder:
+
+```text
+Way Maker (68 BPM)/
+├── manifest.json
+├── drums.wav
+├── bass.wav
+├── music.wav
+└── cues.wav
+```
+
+Stems marked `"pitched": false` (`drums`, `percussion`, `click`, `cues`) automatically bypass pitch shifting when transposing song keys on stage.
+
+<Aside type="note">
+  Full schema details are documented in [SONG_BUNDLE_FORMAT.md](https://github.com/adedayo/psalm-stage/blob/main/docs/SONG_BUNDLE_FORMAT.md).
+</Aside>

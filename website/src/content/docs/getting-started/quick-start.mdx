@@ -1,0 +1,41 @@
+---
+title: 5-Minute Sunday Quick Start
+description: Go from first launch to running a live worship multitrack with click, cues, and pad glue.
+---
+
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+Follow these steps to test Psalm Stage at your desk or soundcheck before Sunday service.
+
+<Steps>
+1. **Launch Psalm Stage**
+   Open **Psalm Stage** from Applications (macOS) or the Start Menu (Windows). You will see four workspace tabs across the top bar:
+   - **Live Stage** (primary Sunday performance screen)
+   - **Setlist Studio** (build and arrange Sunday service order)
+   - **Loop Studio** (create custom percussion grooves and stem bundles)
+   - **Import Workbench** (import local audio or YouTube songs and mark sections)
+
+2. **Verify Your Audio Output Mode**
+   In **Live Stage**, choose your audio device and routing mode:
+   - **Split L/R** (default for 2-channel interfaces like Scarlett 2i2, MOTU M2, Behringer UMC202HD): **Left** carries music stems + pad + percussion; **Right** carries metronome click + vocal guide cues.
+   - **Multi-Out** (for 4+ channel interfaces or X32/Dante): routes Stereo Music, Click, Cues, and Percussion onto separate hardware channels.
+
+   <Aside type="caution">
+     Before unmuting your PA speakers, verify **Direct Monitor** is **OFF** on your audio interface and macOS **"Play stereo audio as mono"** is **OFF**. See [Audio Interfaces & Stage Wiring](/psalm-stage/hardware/audio-routing/).
+   </Aside>
+
+3. **Play the Built-In Demo or Load a Song**
+   Psalm Stage boots ready to audition with a built-in demo arrangement, or you can open **Setlist Studio** / **Import Workbench** to load your own stem folders.
+
+4. **Master the Core Keyboard Shortcuts**
+   | Shortcut | Action |
+   | :--- | :--- |
+   | `Space` | **Play / Stop** transport |
+   | `L` | **Toggle Infinite Loop** on the active song section |
+   | `M` | **Mute / Unmute Click** audio (visual beat dots stay active) |
+   | `P` | **Toggle Ambient Tonic Pad** |
+   | `1` – `9` | **Queue Section #1–#9** (jumps cleanly on the next bar or end of section) |
+
+5. **Connect a MIDI Controller (Optional)**
+   Plug in any USB MIDI keyboard or pedalboard (Morningstar, Line 6 Helix, M-Audio, Arturia, etc.). Psalm Stage connects automatically in **Omni Mode**. Click **MIDI Assign** in the header, click any button or section tile, and tap your pedal or key to bind it.
+</Steps>

@@ -1,0 +1,35 @@
+---
+title: Setlist Studio & Transitions
+description: Organize Sunday service order, customize per-song key/BPM/click overrides, and configure smooth transitions.
+---
+
+**Setlist Studio** lets you assemble, save, and rehearse an entire Sunday service without altering your underlying song library folders.
+
+## Building & Organizing a Setlist
+
+- **Song Library Browser**: Search and filter your indexed songs by readiness (`Ready`, `Needs Setup`, `Missing Stems`) and inspect key/BPM metadata at a glance.
+- **Drag-and-Drop Reordering**: Reorder songs directly in the setlist or group them under **Service Sections** (e.g., *Call to Worship*, *Praise*, *Word Response*, *Altar Call*).
+- **Duplicate Slots**: Need to reprise a song later in the service in a different key? Duplicate the slot and override its key or click behavior independently.
+- **Multi-Select Batch Edits**: Select multiple songs in a setlist to update BPM, click on/off, groove style, or crossfade settings in one action.
+
+## Non-Destructive Song Overrides
+
+Every slot in a setlist can override the song's defaults without touching the original `manifest.json` on disk:
+
+- **Target Key & Harmonic Transition Hints**: Transpose a song to fit the worship leader's vocal range and inspect harmonic key relationships between consecutive songs.
+- **Target BPM**: Speed up or slow down a track for your team's feel.
+- **Per-Slot Click Mode**: Set `On`, `IntroOnly`, or `Off` per song (for example, keeping `IntroOnly` on an upbeat opener and `On` on a tempo-critical ballad).
+
+## Song-to-Song Transitions
+
+Configure how Psalm Stage behaves when one song finishes:
+
+| Transition Mode | Live Stage Behavior |
+| :--- | :--- |
+| **Auto-Pause** | Stops cleanly at the end of the song and waits for the worship leader or footswitch to trigger the next song. |
+| **Auto-Advance** | Automatically loads and begins the next song in the setlist. |
+| **Crossfade Transitions** | Blends out the outgoing song while bringing in the next song (or sustains your continuous Tonic Pad / Percussion groove across the gap). |
+
+## Saved Setlists & Offline Safety
+
+Setlists are stored locally in your configured Setlists folder (`~/Music/PsalmStage/Setlists` by default) so Sunday services run 100% offline with zero cloud dependency.

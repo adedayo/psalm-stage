@@ -1,0 +1,41 @@
+---
+title: Live Stage Performance
+description: Operate transport, quantized section jumps, infinite loops, key/tempo shifts, mixers, and Live Lock during a live service.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+**Live Stage** is the high-contrast, distraction-free performance view built for dimly lit stage laptops and sound booths.
+
+## Top Transport & Beat Pulse
+
+- **Play / Stop (`Space`)**: Starts sample-accurate playback immediately or stops cleanly.
+- **Bar : Beat Counter & Beat Dots**: Shows live bar and beat position with an amber accent on **Beat 1** and emerald pulses on beats **2–4**. When the click audio is muted (`M`), the beat dots dim slightly while still keeping visual time for the band.
+- **Live Lock**: Locking the stage disables editing tabs (**Setlist Studio**, **Loop Studio**, **Import Workbench**), suppresses external sync interruptions, and engages **screen keep-awake** so your laptop display never sleeps mid-worship.
+
+## Dynamic Song Sections & Quantized Jumps
+
+Section tiles (`Intro`, `Verse`, `Chorus`, `Bridge`, `Outro`, etc.) allow spontaneous worship direction without awkward cuts:
+
+- **Click a Section Tile (or press `1`–`9`)**: Queues the jump according to your active **Quantize Mode**:
+  - **Next Bar**: Jumps on the very next bar downbeat.
+  - **End of Section**: Finishes the current section cleanly before transitioning.
+- **Infinite Loop (`L`)**: Arms the active section to repeat seamlessly with equal-power crossfade boundaries until you press `L` again or queue another section.
+- **Continue Until Stopped**: Keeps backing stems or percussion grooves playing smoothly past the end of the arrangement for spoken prayer, altar call, or spontaneous transitions.
+
+## Real-Time Tempo, Key & Click Modes
+
+- **Tempo (BPM)** & **Key Transpose (±12 semitones)**: Powered by Signalsmith Stretch. At `0` semitone shift and native BPM, Psalm Stage automatically activates **zero-latency bypass**—no spectral processing runs at all. When shifted, click and cues are delayed by the exact stretcher latency (`5,760` samples at `48 kHz`) so transients and metronome stay locked sample-for-sample.
+- **Pitch-Preserving Stems**: Stems flagged `"pitched": false` (drums, percussion, click, guide cues) are never pitch-shifted when transposing song keys.
+- **Click Modes**:
+  - **On**: Metronome audible throughout the song.
+  - **Intro Only**: Plays click during the intro count-in and automatically mutes once the main band enters, resetting cleanly if you seek or stop.
+  - **Off**: Metronome muted.
+
+## Stem & IEM Mixer
+
+Each loaded song exposes per-stem level faders, mute, and solo controls. Mixer levels are preserved cleanly across setlist switches and saved with your setlist.
+
+<Aside type="tip">
+  Need separate click/cue routing for the drummer or worship leader? Switch between **Split L/R** and **Multi-Out** in the Stage Audio Routing bar—hotplugged USB interfaces like a Focusrite Scarlett are detected automatically.
+</Aside>

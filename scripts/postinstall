@@ -9,3 +9,4 @@ if [ -d "$APP_PATH" ]; then
 fi
 
 exit 0
+

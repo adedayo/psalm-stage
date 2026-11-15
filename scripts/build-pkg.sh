@@ -26,3 +26,4 @@ pkgbuild --component "$APP_PATH" \
     "$OUTPUT_PKG"
 
 echo "==> Successfully created standalone installer: $OUTPUT_PKG"
+

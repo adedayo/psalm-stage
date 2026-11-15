@@ -1,0 +1,50 @@
+---
+title: Audio Interfaces & Stage Wiring
+description: Wire 2-channel Split L/R and multi-output USB audio interfaces, passive DI boxes, and digital consoles safely for Sunday morning.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Psalm Stage works with any class-compliant USB, Thunderbolt, or Dante audio interface across macOS, Windows, and Linux.
+
+## Setup A: Universal 2-Channel "Split L/R"
+
+This is the standard setup for most worship teams using a 2-output interface (Focusrite Scarlett Solo / 2i2, Behringer UMC202HD / UMC204HD, MOTU M2 / M4, PreSonus AudioBox, Universal Audio Volt, SSL 2, Zoom).
+
+```text
+[ Stage Laptop running Psalm Stage ]
+       │ (USB-C)
+       ▼
+[ 2-Output Audio Interface ]
+       ├── Output 1 (Left TRS)  ──► [ Passive DI Box Ch 1 ] ──► XLR ──► Snake Ch 1 (Music Stems → FOH PA + IEMs)
+       └── Output 2 (Right TRS) ──► [ Passive DI Box Ch 2 ] ──► XLR ──► Snake Ch 2 (Click + Cues → Band IEMs ONLY)
+```
+
+### Mixing Console Assignment
+
+| Console Channel | Source | Send to Main FOH PA? | Send to Band IEMs? | Suggested Processing |
+| :--- | :--- | :--- | :--- | :--- |
+| **Channel 1** | Music Stems / Pads / Percussion | **YES** | Yes | Flat EQ, high-pass at 30 Hz |
+| **Channel 2** | Metronome Click + Vocal Cues | **NO (Unassigned / Muted)** | Yes | High-pass at 100 Hz, gentle limiter |
+
+<Aside type="caution" title="Sunday Morning Stage Safety Checklist">
+  1. **Turn Direct Monitor OFF** on your audio interface hardware knob/switch so click doesn't bleed across headphone/monitor outs.
+  2. **Disable macOS Mono Audio**: Open **System Settings → Accessibility → Audio** and confirm **"Play stereo audio as mono"** is **OFF** (otherwise macOS sums Left and Right, sending click to the house PA).
+  3. **Verify FOH Unassign**: Push Channel 2 up alone at soundcheck and confirm complete silence in the auditorium speakers.
+</Aside>
+
+---
+
+## Setup B: Multi-Output Stage Interface (4 to 16 Channels)
+
+When using multi-channel interfaces (Focusrite Scarlett 18i20, MOTU Ultralite, Behringer X32 / M32 USB card, Dante Virtual Soundcard), switch Psalm Stage to **Multi-Out Mode** so engineers and musicians gain independent faders for:
+
+- **Outputs 1–2**: Stereo Music Stems / Pads
+- **Output 3**: Synthesized Metronome Click
+- **Output 4**: Vocal Guide Cues
+- **Additional Outputs**: Dedicated Drum / Bass / Percussion buses
+
+## DI Boxes, Ground Hum & Power
+
+- **Use Passive Transformer DI Boxes** (e.g., Radial ProDI / ProD2) between 1/4" TRS interface outputs and XLR stage snakes—and flip the **Ground Lift** switch if AC power hum appears.
+- **Keep the Stage Laptop Plugged In**: Never run live multitracks on battery power alone, as OS power-saving governors throttle CPU audio threads.
