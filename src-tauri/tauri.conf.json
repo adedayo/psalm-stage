@@ -31,7 +31,7 @@
     "externalBin": [
       "binaries/psalm-stage-cli"
     ],
-    "category": "AudioVideo",
+    "category": "Music",
     "shortDescription": "Live worship multitrack playback and stage hardware controller",
     "longDescription": "High-performance live worship multitrack playback, sample-accurate synthesized metronome, section jumping, infinite looping, and universal MIDI stage hardware controller.",
     "copyright": "Copyright © 2026 Dr. Dayo Adetoye",

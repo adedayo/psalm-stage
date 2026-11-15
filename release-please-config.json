@@ -5,15 +5,10 @@
   "include-component-in-tag": false,
   "packages": {
     ".": {
-      "release-type": "simple",
+      "release-type": "node",
       "package-name": "psalm-stage",
       "changelog-path": "CHANGELOG.md",
       "extra-files": [
-        {
-          "type": "json",
-          "path": "package.json",
-          "jsonpath": "$.version"
-        },
         {
           "type": "json",
           "path": "src-tauri/tauri.conf.json",
