@@ -76,14 +76,39 @@ jobs:
       - name: Build bundled CLI & MCP sidecar
         run: node scripts/prepare-cli-sidecar.mjs ${{ matrix.args }}
 
-      - name: Build and Package with Tauri Action
+      - name: Build and Package Installers (Manual / Tag Release)
+        if: ${{ !inputs.skip_release_body }}
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ inputs.tag || github.ref_name }}
-          releaseName: ${{ inputs.skip_release_body && '' || format('Psalm Stage {0}', inputs.tag || github.ref_name) }}
-          releaseBody: ${{ inputs.skip_release_body && '' || format('## Psalm Stage Release {0}\n\nTurnkey desktop multitrack player and stage controller for live worship teams. No developer setup or command-line tools required!\n\n### Download Links\n* **macOS (Apple Silicon M1/M2/M3/M4)**: Download the `.dmg` (`aarch64`)\n* **macOS (Intel Core i5/i7/i9)**: Download the `.dmg` (`x64`)\n* **Windows 10 / 11**: Download the `.exe` (NSIS) or `.msi` (Windows Installer)\n* **Linux**: Download the `.AppImage` or `.deb`\n\n### Quick Installation\n* **macOS**: Open the `.dmg` file and drag **Psalm Stage** into your **Applications** folder (see [Website Installation Guide](https://adedayo.github.io/psalm-stage/getting-started/installation/) for macOS Gatekeeper / one-line install).\n* **Windows**: Run the `.exe` installer and follow the on-screen prompts. A desktop shortcut will be created.', inputs.tag || github.ref_name) }}
+          releaseName: 'Psalm Stage ${{ inputs.tag || github.ref_name }}'
+          releaseBody: |
+            ## Psalm Stage Release ${{ inputs.tag || github.ref_name }}
+
+            Turnkey desktop multitrack player and stage controller for live worship teams. No developer setup or command-line tools required!
+
+            ### Download Links
+            * **macOS (Apple Silicon M1/M2/M3/M4)**: Download the `.dmg` (`aarch64`)
+            * **macOS (Intel Core i5/i7/i9)**: Download the `.dmg` (`x64`)
+            * **Windows 10 / 11**: Download the `.exe` (NSIS) or `.msi` (Windows Installer)
+            * **Linux**: Download the `.AppImage` or `.deb`
+
+            ### Quick Installation
+            * **macOS**: Open the `.dmg` file and drag **Psalm Stage** into your **Applications** folder (see [Website Installation Guide](https://adedayo.github.io/psalm-stage/getting-started/installation/) for macOS Gatekeeper / one-line install).
+            * **Windows**: Run the `.exe` installer and follow the on-screen prompts. A desktop shortcut will be created.
+          releaseDraft: false
+          prerelease: false
+          args: ${{ matrix.args }}
+
+      - name: Build and Upload Installers (Release Please)
+        if: ${{ inputs.skip_release_body }}
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ inputs.tag }}
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
