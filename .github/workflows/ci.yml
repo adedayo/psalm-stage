@@ -53,6 +53,9 @@ jobs:
         working-directory: website
         run: npm ci
 
+      - name: Verify documentation is in sync with manifests & CLI
+        run: node scripts/sync-docs.mjs --check
+
       - name: Build Astro + Starlight site
         working-directory: website
         run: npm run build

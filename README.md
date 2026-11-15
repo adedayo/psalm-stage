@@ -45,12 +45,14 @@
 
 Visit the [**GitHub Releases**](https://github.com/adedayo/psalm-stage/releases) page (or the [**Psalm Stage Website**](https://adedayo.github.io/psalm-stage/)) to download the latest release:
 
+<!-- AUTO-SYNC:START installers-table -->
 | Platform | Installer Download | Installation Steps |
 | :--- | :--- | :--- |
-| **macOS (Apple Silicon)** | `Psalm-Stage_0.1.0_aarch64.dmg` | Open the `.dmg` file and drag **Psalm Stage** into your **Applications** folder. |
-| **macOS (Intel Core)** | `Psalm-Stage_0.1.0_x64.dmg` | Open the `.dmg` file and drag **Psalm Stage** into your **Applications** folder. |
-| **Windows 10 / 11** | `Psalm-Stage_0.1.0_x64-setup.exe` | Double-click the `.exe` installer. A desktop shortcut and Start menu entry are created automatically. |
-| **Linux** | `Psalm-Stage_0.1.0_amd64.AppImage` | Right-click the `.AppImage`, enable "Allow executing file as program", and double-click to launch. |
+| **macOS (Apple Silicon)** | `Psalm.Stage_0.1.0_aarch64.dmg` | Open the `.dmg` file and drag **Psalm Stage** into your **Applications** folder. |
+| **macOS (Intel Core)** | `Psalm.Stage_0.1.0_x64.dmg` | Open the `.dmg` file and drag **Psalm Stage** into your **Applications** folder. |
+| **Windows 10 / 11** | `Psalm.Stage_0.1.0_x64-setup.exe` | Double-click the `.exe` installer. A desktop shortcut and Start menu entry are created automatically. |
+| **Linux** | `Psalm.Stage_0.1.0_amd64.AppImage` | Right-click the `.AppImage`, enable "Allow executing file as program", and double-click to launch. |
+<!-- AUTO-SYNC:END installers-table -->
 
 > [!TIP] First-Time Launch Note (Free Open-Source Distribution)
 > You do **not** need to buy any Apple or Microsoft developer licenses. Because Psalm Stage is distributed as free community software:
@@ -64,6 +66,17 @@ For detailed packaging architecture, automated CI/CD release builds, and enterpr
 ## Overview & Philosophy
 
 **Psalm Stage** is an open-source, deterministic live worship multitrack playback system and stage hardware controller. Designed for the high-stakes Sunday morning environment, Psalm Stage eliminates awkward silences, flams between metronome and stems, and subscription lock-in.
+
+### Workspace Tour
+
+<p align="center">
+  <img src="docs/assets/screenshots/live-stage.png" alt="Psalm Stage Live Stage" width="840" />
+</p>
+
+| Live Stage & Tonic Pad Studio | Setlist Studio & Loop Studio |
+| :---: | :---: |
+| <img src="docs/assets/screenshots/tonic-pad-studio.png" alt="Tonic Pad Studio" width="410" /> | <img src="docs/assets/screenshots/setlist-studio.png" alt="Setlist Studio" width="410" /> |
+| <img src="docs/assets/screenshots/loop-studio.png" alt="Loop Studio" width="410" /> | <img src="docs/assets/screenshots/import-workbench.png" alt="Import Workbench" width="410" /> |
 
 ### Core Architectural Invariants:
 * **Zero-Latency Native Streaming**: When playing at native tempo and key (0 semitones shift), the audio engine completely bypasses STFT phase-vocoder spectral processing. Audio streams bit-perfect from memory with zero latency and zero transient smearing.

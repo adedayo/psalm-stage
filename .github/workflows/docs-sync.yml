@@ -1,0 +1,63 @@
+name: Sync Docs & Screenshots
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/**'
+      - 'crates/psalm-stage-cli/**'
+      - 'package.json'
+      - '.release-please-manifest.json'
+      - 'scripts/capture-docs-screenshots.mjs'
+      - 'scripts/sync-docs.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: docs-sync
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js (v22)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install root dependencies & build Angular frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Install website dependencies & Playwright Chromium
+        working-directory: website
+        run: |
+          npm ci
+          npx playwright install chromium --with-deps
+
+      - name: Refresh UI screenshots and synced reference docs
+        run: |
+          node scripts/capture-docs-screenshots.mjs
+          node scripts/sync-docs.mjs
+
+      - name: Create or update Docs Sync PR if files changed
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: 'docs(auto): refresh UI screenshots and reference docs'
+          title: 'docs(auto): refresh UI screenshots and reference docs'
+          body: |
+            Automated update keeping documentation screenshots, installer version tables, and `psalm-stage-cli` / MCP references synchronized with `main`.
+          branch: docs-auto-sync
+          delete-branch: true
+          labels: documentation

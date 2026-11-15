@@ -38,7 +38,7 @@ if [ -z "$LATEST_TAG" ]; then
 fi
 
 CLEAN_TAG="${LATEST_TAG#v}"
-DMG_NAME="Psalm-Stage_${CLEAN_TAG}_${ASSET_NAME}.dmg"
+DMG_NAME="Psalm.Stage_${CLEAN_TAG}_${ASSET_NAME}.dmg"
 DOWNLOAD_URL="https://github.com/$REPO/releases/download/$LATEST_TAG/$DMG_NAME"
 TMP_DIR=$(mktemp -d)
 TMP_DMG="$TMP_DIR/psalm-stage.dmg"

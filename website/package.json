@@ -6,10 +6,15 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
-    "preview": "astro preview"
+    "preview": "astro preview",
+    "screenshots": "node ../scripts/capture-docs-screenshots.mjs",
+    "sync-docs": "node ../scripts/sync-docs.mjs"
   },
   "dependencies": {
     "@astrojs/starlight": "^0.43.1",
     "astro": "^7.4.12"
+  },
+  "devDependencies": {
+    "playwright": "^1.65.1"
   }
 }

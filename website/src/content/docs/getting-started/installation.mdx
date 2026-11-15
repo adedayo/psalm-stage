@@ -7,6 +7,10 @@ import { Tabs, TabItem, Aside } from '@astrojs/starlight/components';
 
 Psalm Stage ships as standalone, self-contained desktop installers from [GitHub Releases](https://github.com/adedayo/psalm-stage/releases). Worship leaders, musicians, and sound techs do **not** need Node.js, Rust, or any coding tools.
 
+{/* AUTO-SYNC:START latest-release-note */}
+Current release: **`v0.1.0`** — installers on [GitHub Releases](https://github.com/adedayo/psalm-stage/releases/latest) include `Psalm.Stage_0.1.0_aarch64.dmg`, `Psalm.Stage_0.1.0_x64.dmg`, `Psalm.Stage_0.1.0_x64-setup.exe`, and `Psalm.Stage_0.1.0_amd64.AppImage`.
+{/* AUTO-SYNC:END latest-release-note */}
+
 ## Choose Your Platform
 
 <Tabs>
@@ -21,8 +25,8 @@ Psalm Stage ships as standalone, self-contained desktop installers from [GitHub 
   </TabItem>
   <TabItem label="macOS (.dmg Manual Install)">
     1. Download the `.dmg` for your Mac from [GitHub Releases](https://github.com/adedayo/psalm-stage/releases/latest):
-       - **Apple Silicon (M1 / M2 / M3 / M4)**: `Psalm-Stage_<version>_aarch64.dmg`
-       - **Intel Mac**: `Psalm-Stage_<version>_x64.dmg`
+       - **Apple Silicon (M1 / M2 / M3 / M4)**: `Psalm.Stage_<version>_aarch64.dmg`
+       - **Intel Mac**: `Psalm.Stage_<version>_x64.dmg`
     2. Open the `.dmg` and drag **Psalm Stage** into **Applications**.
     3. Double-click **Psalm Stage**. If macOS shows *"cannot be opened because it is from an unidentified developer"*:
        - Click **Done**.
@@ -30,7 +34,7 @@ Psalm Stage ships as standalone, self-contained desktop installers from [GitHub 
        - Confirm with Touch ID or your password. macOS remembers this permanently.
   </TabItem>
   <TabItem label="Windows 10 / 11">
-    1. Download `Psalm-Stage_<version>_x64-setup.exe` (or the `.msi` installer) from [GitHub Releases](https://github.com/adedayo/psalm-stage/releases/latest).
+    1. Download `Psalm.Stage_<version>_x64-setup.exe` (or the `.msi` installer) from [GitHub Releases](https://github.com/adedayo/psalm-stage/releases/latest).
     2. Double-click the installer.
     3. If **Windows Defender SmartScreen** shows *"Windows protected your PC"*, click **More info** → **Run anyway**.
     4. Follow the installer prompts. A Start Menu and desktop shortcut are created automatically.
@@ -40,12 +44,12 @@ Psalm Stage ships as standalone, self-contained desktop installers from [GitHub 
 
     - **AppImage**:
       ```bash
-      chmod +x Psalm-Stage_*.AppImage
-      ./Psalm-Stage_*.AppImage
+      chmod +x Psalm.Stage_*.AppImage
+      ./Psalm.Stage_*.AppImage
       ```
     - **Debian / Ubuntu (`.deb`)**:
       ```bash
-      sudo apt install ./Psalm-Stage_*.deb
+      sudo apt install ./Psalm.Stage_*.deb
       ```
   </TabItem>
 </Tabs>

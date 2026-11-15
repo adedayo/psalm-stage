@@ -9,14 +9,23 @@ Every desktop release of Psalm Stage bundles **`psalm-stage-cli`**, a headless C
 
 ## What AI Assistants Can Do with Psalm Stage
 
-When connected via MCP (e.g., in Claude Desktop, Antigravity, Cursor, or VS Code), your AI assistant can:
+When connected via MCP (e.g., in Claude Desktop, Antigravity, Cursor, or VS Code), your AI assistant has access to these automatically synced MCP tools:
 
-- Check installed workbench toolchain status (`get_toolchain_status`)
-- Search and fuzzy-match songs in your local library (`list_library_songs`, `match_library_song`)
-- Search YouTube reference tracks (`search_youtube_tracks`)
-- Plan a Sunday setlist with automatic key-shift / harmonic transition calculations (`plan_sunday_setlist`)
-- Ingest local or YouTube audio into song bundles (`ingest_song`, `ingest_songs_batch`)
-- Save and inspect Sunday setlists (`create_or_update_setlist`, `list_setlists`, `get_setlist`)
+{/* AUTO-SYNC:START mcp-tools-table */}
+| MCP Tool | Purpose |
+| :--- | :--- |
+| `get_toolchain_status` | Inspect Psalm Stage library/setlists directories, default separation config, and availability of ffmpeg, yt-dlp, audio-separator, and demucs. |
+| `list_library_songs` | List songs indexed in the local Psalm Stage Library with optional text query and status filter. |
+| `match_library_song` | Fuzzy-match a song title/artist or YouTube URL against the local Library. |
+| `search_youtube_tracks` | Search YouTube via yt-dlp for a song and return ranked audio candidates for user confirmation. |
+| `plan_sunday_setlist` | Dry-run plan a Sunday setlist: match Library songs, search YouTube for missing unlinked songs, compute key shifts, and flag items needing confirmation before any downloads occur. |
+| `ingest_song` | Download/import a single song from a YouTube URL or local audio file through the Workbench pipeline (uses default separation with stereo fallback unless specified; skips if cached). |
+| `ingest_songs_batch` | Sequentially ingest multiple confirmed YouTube URLs or local files into the Song Library. |
+| `create_or_update_setlist` | Either execute a full Sunday setlist build (when 'songs' is provided, ingesting confirmed missing songs and writing the setlist JSON) OR assemble a setlist directly from Library 'items' with song_dir. |
+| `list_setlists` | List managed setlists stored in setlists_root and recent_setlists. |
+| `get_setlist` | Load and inspect a saved setlist JSON file by path. |
+| `get_ai_workflow_guide` | Return the canonical Psalm Stage Sunday setlist workflow instructions (SKILL.md). |
+{/* AUTO-SYNC:END mcp-tools-table */}
 
 <Aside type="caution">
   **Live Lock Protection**: When **Live Lock** is enabled in the desktop app during a service, external setlist sync is suppressed so nothing modifies your live stage state mid-worship.
@@ -40,6 +49,29 @@ Open **Setlist Studio → AI Harness Setup** inside Psalm Stage to copy your pre
 ## Headless CLI Commands
 
 You can also script `psalm-stage-cli` directly from your terminal:
+
+{/* AUTO-SYNC:START cli-usage */}
+```text
+psalm-stage-cli — Headless CLI & MCP server for Psalm Stage
+
+USAGE:
+  psalm-stage-cli status [--json]
+  psalm-stage-cli library list [--query <q>] [--status <ready|needs_setup|missing_stems>] [--json]
+  psalm-stage-cli library match --title <title> [--artist <artist>] [--url <youtube_url>] [--json]
+  psalm-stage-cli youtube search <query> [--limit <n>] [--json]
+  psalm-stage-cli setlist plan --input <file|-> [--auto-approve] [--json]
+  psalm-stage-cli setlist build --input <file|-> [--name <name>] [--output <path>] [--auto-approve] [--separation <auto|none|uvr|demucs>] [--stems <2|4|6>] [--force] [--json]
+  psalm-stage-cli setlist list [--json]
+  psalm-stage-cli loop kit generate [--profile <studio|makossa|acoustic>] [--out <dir>] [--json]
+  psalm-stage-cli loop kit list [--json]
+  psalm-stage-cli loop list [--json]
+  psalm-stage-cli loop export --title <title> [--style <Makossa|Afrobeat|Woro|Worship44|...>] [--bpm <129>] [--bars <16>] [--intensity <low|medium|high>] [--static] [--kit <dir>] [--out <dir>] [--json]
+  psalm-stage-cli skill [--json]
+  psalm-stage-cli mcp
+```
+{/* AUTO-SYNC:END cli-usage */}
+
+Examples:
 
 ```bash
 # Inspect toolchain & library readiness
