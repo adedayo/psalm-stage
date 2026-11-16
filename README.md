@@ -48,10 +48,10 @@ Visit the [**GitHub Releases**](https://github.com/adedayo/psalm-stage/releases)
 <!-- AUTO-SYNC:START installers-table -->
 | Platform | Installer Download | Installation Steps |
 | :--- | :--- | :--- |
-| **macOS (Apple Silicon)** | `Psalm.Stage_0.1.0_aarch64.dmg` | Open the `.dmg` file and drag **Psalm Stage** into your **Applications** folder. |
-| **macOS (Intel Core)** | `Psalm.Stage_0.1.0_x64.dmg` | Open the `.dmg` file and drag **Psalm Stage** into your **Applications** folder. |
-| **Windows 10 / 11** | `Psalm.Stage_0.1.0_x64-setup.exe` | Double-click the `.exe` installer. A desktop shortcut and Start menu entry are created automatically. |
-| **Linux** | `Psalm.Stage_0.1.0_amd64.AppImage` | Right-click the `.AppImage`, enable "Allow executing file as program", and double-click to launch. |
+| **macOS (Apple Silicon)** | `Psalm.Stage_0.2.0_aarch64.dmg` | Open the `.dmg` file and drag **Psalm Stage** into your **Applications** folder. |
+| **macOS (Intel Core)** | `Psalm.Stage_0.2.0_x64.dmg` | Open the `.dmg` file and drag **Psalm Stage** into your **Applications** folder. |
+| **Windows 10 / 11** | `Psalm.Stage_0.2.0_x64-setup.exe` | Double-click the `.exe` installer. A desktop shortcut and Start menu entry are created automatically. |
+| **Linux** | `Psalm.Stage_0.2.0_amd64.AppImage` | Right-click the `.AppImage`, enable "Allow executing file as program", and double-click to launch. |
 <!-- AUTO-SYNC:END installers-table -->
 
 > [!TIP] First-Time Launch Note (Free Open-Source Distribution)
