@@ -1,6 +1,6 @@
 [package]
 name = "psalm-stage"
-version = "0.1.0"
+version = "0.2.0"
 description = "Psalm Stage — Worship live multitrack, click, and MIDI performance app"
 authors = ["Dr. Dayo Adetoye", "Psalm Stage Contributors"]
 license = "BSD-3-Clause"
