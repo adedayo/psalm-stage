@@ -68,6 +68,7 @@ import {
 } from './models/setlist.helpers';
 import { ImportWorkbenchComponent } from './components/import-workbench/import-workbench.component';
 import { LoopStudioComponent } from './components/loop-studio/loop-studio.component';
+import { RotaryDialComponent } from './components/rotary-dial/rotary-dial.component';
 import { SetlistStudioComponent } from './components/setlist-studio/setlist-studio.component';
 import { expandPatternBars, rescalePatternGrid, sanitizeLoopId } from './models/loop-pattern.helpers';
 import { PsalmStageService, SONG_KEY_OPTIONS } from './services/psalm-stage.service';
@@ -160,6 +161,7 @@ export interface EditableStemEntry {
     SetlistStudioComponent,
     LoopStudioComponent,
     ImportWorkbenchComponent,
+    RotaryDialComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.css',
@@ -257,6 +259,10 @@ export class App {
   protected readonly addSectionKind = signal<ServiceSectionKind>('Praise');
   protected readonly addSectionName = signal<string>('');
   protected readonly addSlotDrawerOpen = signal<boolean>(false);
+  protected readonly newSetlistDrawerOpen = signal<boolean>(false);
+  protected readonly newSetlistName = signal<string>('');
+  protected readonly newSetlistSaveCurrent = signal<boolean>(true);
+  protected readonly newSetlistBusy = signal<boolean>(false);
   protected readonly newStandaloneTitle = signal<string>('Sermon Underscore');
   protected readonly newStandaloneKind = signal<SetlistSlotKind>('PadOnly');
   protected readonly newStandaloneKey = signal<string>('D');
@@ -466,6 +472,21 @@ export class App {
     void this.stage.sendCommand({ type: 'AdjustKeyShift', payload: delta });
   }
 
+  protected onKeyDialMidiAssign(): void {
+    if (!this.stage.midiAssignMode()) return;
+    this.stage.startListeningForTarget({ type: 'KeyDial' }, 'Key Transpose Dial', 'Continuous');
+  }
+
+  protected onTempoDialMidiAssign(): void {
+    if (!this.stage.midiAssignMode()) return;
+    this.stage.startListeningForTarget({ type: 'TempoDial' }, 'Tempo BPM Dial', 'Continuous');
+  }
+
+  protected unassignMidi(target: MidiTarget, event?: Event): void {
+    event?.stopPropagation();
+    void this.stage.unassignMidiTarget(target);
+  }
+
   protected onBpmAdjust(delta: number): void {
     if (this.stage.midiAssignMode()) {
       const target: MidiTarget = delta > 0 ? { type: 'TempoUp' } : { type: 'TempoDown' };
@@ -549,6 +570,13 @@ export class App {
     const val = values[0];
     if (typeof val === 'number') {
       void this.stage.sendCommand({ type: 'SetMasterGain', payload: val });
+    }
+  }
+
+  protected onBackingSlider(values: number[]): void {
+    const val = values[0];
+    if (typeof val === 'number') {
+      void this.stage.sendCommand({ type: 'SetBackingGain', payload: val });
     }
   }
 
@@ -1043,6 +1071,41 @@ export class App {
     const path = await this.stage.pickSaveSetlistFile(`${manifest.id}.json`);
     if (path) {
       await this.stage.saveSetlistToDisk(path, manifest);
+    }
+  }
+
+  protected hasCurrentSetlistContent(): boolean {
+    const cur = this.snap();
+    return cur.setlist_items.length > 0 || cur.setlist_sections.length > 0;
+  }
+
+  protected toggleNewSetlistDrawer(): void {
+    if (this.liveLock()) return;
+    const next = !this.newSetlistDrawerOpen();
+    this.newSetlistDrawerOpen.set(next);
+    if (next) {
+      this.newSetlistSaveCurrent.set(true);
+      this.newSetlistName.set('');
+    }
+  }
+
+  protected async onCreateNewSetlist(saveAsCustomPath = false): Promise<void> {
+    if (this.liveLock() || this.newSetlistBusy()) return;
+    this.newSetlistBusy.set(true);
+    try {
+      const ok = await this.stage.createNewSetlist({
+        name: this.newSetlistName(),
+        saveCurrent: this.newSetlistSaveCurrent(),
+        saveAsCustomPath,
+      });
+      if (ok) {
+        this.selectedSetlistSlots.set([]);
+        this.selectionAnchorSlot.set(null);
+        this.newSetlistName.set('');
+        this.newSetlistDrawerOpen.set(false);
+      }
+    } finally {
+      this.newSetlistBusy.set(false);
     }
   }
 
@@ -1937,10 +2000,14 @@ export class App {
         return 'Key +1';
       case 'KeyDown':
         return 'Key -1';
+      case 'KeyDial':
+        return 'Key Dial (Rotary)';
       case 'TempoUp':
         return 'Tempo +1';
       case 'TempoDown':
         return 'Tempo -1';
+      case 'TempoDial':
+        return 'Tempo BPM Dial (Rotary)';
       case 'NextSong':
         return 'Next Setlist Song';
       case 'PrevSong':
@@ -1967,6 +2034,8 @@ export class App {
         return 'Pad Key -1';
       case 'MasterGain':
         return 'Master Volume';
+      case 'BackingGain':
+        return 'Backing Track Volume';
       case 'ClickGain':
         return 'Click Volume';
       case 'CuesGain':

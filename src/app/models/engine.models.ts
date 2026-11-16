@@ -265,6 +265,7 @@ export interface StemMixOverride {
 
 export interface SetlistMixerConfig {
   master_gain: number;
+  backing_gain?: number;
   click_gain: number;
   click_muted?: boolean | null;
 }
@@ -396,6 +397,37 @@ export interface InspectedSongBundle {
   manifest: SongManifest;
 }
 
+export interface SectionCueOptions {
+  lead_in_beats: number;
+  include_chime: boolean;
+  sample_rate?: number | null;
+  use_os_tts?: boolean | null;
+}
+
+export interface SectionCueTimingOverride {
+  bpm?: number | null;
+  first_downbeat_sec?: number | null;
+  beats_per_bar?: number | null;
+  sections?: SectionDef[] | null;
+}
+
+export interface SectionCuePlacement {
+  section_id: string;
+  section_name: string;
+  phrase: string;
+  section_start_sec: number;
+  cue_start_sec: number;
+}
+
+export interface GeneratedSectionCues {
+  stem_key: string;
+  file_name: string;
+  used_os_tts: boolean;
+  placements: SectionCuePlacement[];
+  duration_sec: number;
+  manifest: SongManifest;
+}
+
 export interface EngineSnapshot {
   song_id: string | null;
   active_song_dir: string | null;
@@ -417,6 +449,7 @@ export interface EngineSnapshot {
   base_bpm: number;
   current_bpm: number;
   master_gain: number;
+  backing_gain: number;
   click_gain: number;
   click_muted: boolean;
   click_mode: ClickMode;
@@ -488,8 +521,10 @@ export type MidiTarget =
   | { type: 'PrevSection' }
   | { type: 'KeyUp' }
   | { type: 'KeyDown' }
+  | { type: 'KeyDial' }
   | { type: 'TempoUp' }
   | { type: 'TempoDown' }
+  | { type: 'TempoDial' }
   | { type: 'NextSong' }
   | { type: 'PrevSong' }
   | { type: 'TogglePad' }
@@ -503,6 +538,7 @@ export type MidiTarget =
   | { type: 'PadKeyNext' }
   | { type: 'PadKeyPrev' }
   | { type: 'MasterGain' }
+  | { type: 'BackingGain' }
   | { type: 'ClickGain' }
   | { type: 'CuesGain' }
   | { type: 'StemGain'; value: string }
@@ -579,6 +615,7 @@ export type EngineCommand =
       };
     }
   | { type: 'SetMasterGain'; payload: number }
+  | { type: 'SetBackingGain'; payload: number }
   | { type: 'SetClickGain'; payload: number }
   | { type: 'SetClickMuted'; payload: boolean }
   | { type: 'ToggleClickMuted' }

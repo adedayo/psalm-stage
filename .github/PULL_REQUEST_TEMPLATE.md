@@ -13,4 +13,6 @@
 - [ ] `cargo test --workspace` passes
 - [ ] `npx ng test --watch=false` passes
 - [ ] `npm run build` succeeds
-- [ ] `cd website && npm run build` succeeds (if website/docs changed)
+- [ ] `node scripts/sync-docs.mjs --check` passes
+- [ ] `cd website && npm run build` succeeds (if website/docs/UI/CLI changed)
+- [ ] User docs (`website/src/content/docs/`) and screenshots (`scripts/capture-docs-screenshots.mjs`) updated for any major UI or feature changes

@@ -929,9 +929,13 @@
         <div
           class="sm:col-span-3 rounded-lg border border-zinc-800 bg-zinc-950 p-2.5 flex flex-wrap items-center gap-1.5">
           <span class="text-zinc-400">BPM</span>
-          <input type="number" step="0.5" min="30" max="260"
+          <input type="text" inputmode="decimal"
+            aria-label="Song BPM"
             class="w-20 rounded border border-zinc-700 bg-zinc-900 px-2 py-1 font-mono text-zinc-100"
-            [ngModel]="ed.bpm" (ngModelChange)="updateManifestField('bpm', $event)" />
+            [value]="ed.bpm"
+            (change)="updateManifestField('bpm', $any($event.target).value)"
+            (blur)="updateManifestField('bpm', $any($event.target).value)"
+            (keydown.enter)="!$any($event).isComposing && $any($event.target).blur()" />
           <button hlmBtn variant="ghost" size="xs" type="button" (click)="scaleBpm(0.5)"
             title="Halve tempo (e.g. double-time to half-time)">×½</button>
           <button hlmBtn variant="ghost" size="xs" type="button" (click)="scaleBpm(2)"
@@ -1007,6 +1011,84 @@
               Split @ Playhead
             </button>
           </div>
+        </div>
+
+        <!-- IEM Section Cues Generator Bar -->
+        <div
+          data-testid="workbench-iem-cues-bar"
+          class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-2.5 py-2 text-xs"
+        >
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="font-semibold text-amber-300">IEM Section Cues</span>
+            <span
+              data-testid="workbench-iem-cues-status"
+              class="rounded border px-1.5 py-0.5 text-[10px] font-mono"
+              [class]="hasGeneratedSectionCues()
+                ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300'
+                : 'border-zinc-700 bg-zinc-900 text-zinc-400'"
+            >
+              {{ hasGeneratedSectionCues() ? 'IEM Cues Ready' : 'Not Generated' }}
+            </span>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2">
+            <label class="inline-flex items-center gap-1 text-[11px] text-zinc-300">
+              <span>Lead-in</span>
+              <select
+                data-testid="workbench-cue-leadin-select"
+                class="rounded border border-zinc-700 bg-zinc-900 px-1.5 py-0.5 text-[11px] text-zinc-100"
+                [ngModel]="cueLeadInBeats()"
+                (ngModelChange)="cueLeadInBeats.set(+$event)"
+              >
+                <option [value]="0">At Mark</option>
+                <option [value]="1">1 Beat</option>
+                <option [value]="2">2 Beats</option>
+                <option [value]="ed.time_signature?.[0] || 4">1 Bar</option>
+              </select>
+            </label>
+
+            <label class="inline-flex items-center gap-1 text-[11px] text-zinc-300 cursor-pointer">
+              <input
+                type="checkbox"
+                [checked]="cueIncludeChime()"
+                (change)="cueIncludeChime.set($any($event.target).checked)"
+              />
+              <span>Chime</span>
+            </label>
+
+            <label class="inline-flex items-center gap-1 text-[11px] text-zinc-300 cursor-pointer" title="Automatically regenerate section-cues.wav whenever saving to Library">
+              <input
+                type="checkbox"
+                data-testid="workbench-cue-autosync-checkbox"
+                [checked]="autoRegenerateCuesOnSave()"
+                (change)="autoRegenerateCuesOnSave.set($any($event.target).checked)"
+              />
+              <span>Sync on Save</span>
+            </label>
+
+            <button
+              hlmBtn
+              size="xs"
+              type="button"
+              data-testid="workbench-generate-cues-btn"
+              [disabled]="generatingCues() || ed.sections.length === 0"
+              (click)="generateIemSectionCues()"
+              class="bg-amber-500 hover:bg-amber-400 text-zinc-950 font-semibold"
+            >
+              {{ generatingCues() ? 'Generating…' : 'Generate IEM Cues' }}
+            </button>
+          </div>
+
+          @if (generatedCuePlacements().length > 0) {
+            <div class="w-full flex flex-wrap items-center gap-1.5 pt-1 border-t border-amber-500/20 text-[10px] font-mono text-amber-200/90">
+              <span class="text-zinc-400">Cue Callouts:</span>
+              @for (cue of generatedCuePlacements(); track cue.section_id + cue.cue_start_sec) {
+                <span class="rounded bg-zinc-900 border border-zinc-800 px-1.5 py-0.5">
+                  "{{ cue.phrase }}" @ {{ formatTimePrecise(cue.cue_start_sec) }}
+                </span>
+              }
+            </div>
+          }
         </div>
 
         <div class="space-y-1.5 max-h-52 overflow-y-auto pr-1">

@@ -5,9 +5,11 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter};
 
 pub use psalm_workbench::{
-    analyze_waveform_with_timing, ImportJobRequest, ProgressSink, ToolchainStatus,
-    WorkbenchConfig, WorkbenchJobProgress, WorkbenchManager, YouTubeMetadata,
-    YouTubeSearchCandidate, BUNDLED_SKILL_MD,
+    analyze_waveform_with_timing, generate_section_cues_for_song,
+    save_managed_setlist as core_save_managed_setlist, GeneratedSectionCues, ImportJobRequest,
+    ProgressSink, SectionCueOptions, SectionCueTimingOverride, ToolchainStatus, WorkbenchConfig,
+    WorkbenchJobProgress, WorkbenchManager, YouTubeMetadata, YouTubeSearchCandidate,
+    BUNDLED_SKILL_MD,
 };
 
 pub struct TauriProgressSink {

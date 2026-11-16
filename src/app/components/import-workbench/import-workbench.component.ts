@@ -21,6 +21,7 @@ import {
   type AudioAnalysisResult,
   type ClickMode,
   type LibrarySongEntry,
+  type SectionCuePlacement,
   type SectionDef,
   type SeparationEngine,
   type SongManifest,
@@ -193,6 +194,11 @@ export class ImportWorkbenchComponent {
   readonly editingBandIdx = signal<number | null>(null);
   readonly editingBandName = signal('');
   readonly rapidSectionName = signal('');
+  readonly cueLeadInBeats = signal<number>(2);
+  readonly cueIncludeChime = signal<boolean>(true);
+  readonly autoRegenerateCuesOnSave = signal<boolean>(false);
+  readonly generatingCues = signal<boolean>(false);
+  readonly generatedCuePlacements = signal<SectionCuePlacement[]>([]);
   readonly workbenchError = signal<string | null>(null);
   readonly workbenchNotice = signal<string | null>(null);
   readonly soloedStems = signal<string[]>([]);
@@ -734,6 +740,13 @@ export class ImportWorkbenchComponent {
       return;
     }
     this.manifest.set(inspected.manifest);
+    this.generatedCuePlacements.set([]);
+    const hasAutoCues = ['cues', 'section_cues'].some((k) => {
+      const s = inspected.manifest.stems?.[k];
+      const file = typeof s === 'string' ? s : s?.file;
+      return file === 'section-cues.wav';
+    });
+    this.autoRegenerateCuesOnSave.set(hasAutoCues);
 
     // Preload audio into engine immediately if manifest timing already exists
     if (inspected.has_existing_manifest) {
@@ -2126,6 +2139,58 @@ export class ImportWorkbenchComponent {
     return null;
   }
 
+  hasGeneratedSectionCues(): boolean {
+    const stems = this.manifest()?.stems;
+    if (!stems) return false;
+    return Object.entries(stems).some(([key, def]) => {
+      const file = typeof def === 'string' ? def : def.file;
+      const isCue = typeof def === 'string' ? key.toLowerCase() === 'cues' : (def.is_cues ?? key.toLowerCase() === 'cues');
+      return isCue || file === 'section-cues.wav';
+    });
+  }
+
+  async generateIemSectionCues(): Promise<void> {
+    const m = this.manifest();
+    const dir = this.loadedDir();
+    if (!m || !dir) return;
+    if (m.sections.length === 0) {
+      this.workbenchError.set('Add at least one section marker before generating IEM cues.');
+      return;
+    }
+
+    this.workbenchError.set(null);
+    this.generatingCues.set(true);
+    try {
+      const res = await this.stage.generateSectionCues(
+        dir,
+        {
+          bpm: m.bpm,
+          first_downbeat_sec: m.first_downbeat_sec,
+          beats_per_bar: m.time_signature?.[0] || 4,
+          sections: m.sections,
+        },
+        {
+          lead_in_beats: this.cueLeadInBeats(),
+          include_chime: this.cueIncludeChime(),
+        },
+        true,
+        m,
+      );
+      if (!res) {
+        this.workbenchError.set(this.stage.statusMessage() || 'Failed to generate IEM section cues.');
+        return;
+      }
+      this.manifest.set(res.manifest);
+      this.generatedCuePlacements.set(res.placements);
+      this.autoRegenerateCuesOnSave.set(true);
+      this.workbenchNotice.set(
+        `Generated IEM cues for ${res.placements.length} section${res.placements.length === 1 ? '' : 's'} (${res.stem_key}) — routed strictly to IEM!`,
+      );
+    } finally {
+      this.generatingCues.set(false);
+    }
+  }
+
   async saveToLibrary(alsoAddToSetlist: boolean): Promise<void> {
     const m = this.manifest();
     const dir = this.loadedDir();
@@ -2137,7 +2202,7 @@ export class ImportWorkbenchComponent {
       return;
     }
 
-    const verifiedManifest: SongManifest = m.provenance
+    let workingManifest: SongManifest = m.provenance
       ? {
           ...m,
           provenance: {
@@ -2147,9 +2212,35 @@ export class ImportWorkbenchComponent {
           },
         }
       : m;
-    this.manifest.set(verifiedManifest);
 
-    const ok = await this.stage.saveSongManifest(dir, verifiedManifest, true);
+    if (this.autoRegenerateCuesOnSave() && workingManifest.sections.length > 0) {
+      const cueRes = await this.stage.generateSectionCues(
+        dir,
+        {
+          bpm: workingManifest.bpm,
+          first_downbeat_sec: workingManifest.first_downbeat_sec,
+          beats_per_bar: workingManifest.time_signature?.[0] || 4,
+          sections: workingManifest.sections,
+        },
+        {
+          lead_in_beats: this.cueLeadInBeats(),
+          include_chime: this.cueIncludeChime(),
+        },
+        false,
+        workingManifest,
+      );
+      if (cueRes) {
+        workingManifest = {
+          ...cueRes.manifest,
+          provenance: workingManifest.provenance,
+        };
+        this.generatedCuePlacements.set(cueRes.placements);
+      }
+    }
+
+    this.manifest.set(workingManifest);
+
+    const ok = await this.stage.saveSongManifest(dir, workingManifest, true);
     if (!ok) return;
 
     await this.stage.refreshLibrary();

@@ -137,6 +137,7 @@ pub struct EngineSnapshot {
     pub base_bpm: f64,
     pub current_bpm: f64,
     pub master_gain: f32,
+    pub backing_gain: f32,
     pub click_gain: f32,
     pub click_muted: bool,
     pub click_mode: ClickMode,
@@ -255,6 +256,7 @@ pub enum EngineCommand {
         sections: Option<Vec<SectionDef>>,
     },
     SetMasterGain(f32),
+    SetBackingGain(f32),
     SetClickGain(f32),
     SetClickMuted(bool),
     ToggleClickMuted,
@@ -946,6 +948,7 @@ struct MixerState {
     quantize_mode: QuantizeMode,
     key_shift_semitones: i32,
     current_bpm: f64,
+    backing_gain: f32,
     click_gain: f32,
     click_muted: bool,
     active_click_mode: ClickMode,
@@ -1032,6 +1035,7 @@ impl MixerState {
             quantize_mode: QuantizeMode::NextBar,
             key_shift_semitones: 0,
             current_bpm: base_bpm,
+            backing_gain: 1.0,
             click_gain: 0.85,
             click_muted: initial_click_mode == ClickMode::Off,
             active_click_mode: initial_click_mode,
@@ -1098,6 +1102,7 @@ impl MixerState {
             quantize_mode: QuantizeMode::NextBar,
             key_shift_semitones: 0,
             current_bpm: base_bpm,
+            backing_gain: 1.0,
             click_gain: 0.85,
             click_muted: initial_click_mode == ClickMode::Off,
             active_click_mode: initial_click_mode,
@@ -1496,6 +1501,9 @@ impl MixerState {
                 if let Ok(mut r) = shared_routing.write() {
                     r.master_gain = gain.clamp(0.0, 1.5);
                 }
+            }
+            EngineCommand::SetBackingGain(gain) => {
+                self.backing_gain = gain.clamp(0.0, 1.5);
             }
             EngineCommand::SetClickGain(gain) => {
                 self.click_gain = gain.clamp(0.0, 1.5);
@@ -2193,6 +2201,9 @@ impl MixerState {
                             r.master_gain = mixer.master_gain.clamp(0.0, 1.5);
                         }
                     }
+                    if mixer.backing_gain.is_finite() {
+                        self.backing_gain = mixer.backing_gain.clamp(0.0, 1.5);
+                    }
                     if mixer.click_gain.is_finite() {
                         self.click_gain = mixer.click_gain.clamp(0.0, 1.5);
                     }
@@ -2269,6 +2280,9 @@ impl MixerState {
             if session.master_gain.is_finite() {
                 r.master_gain = session.master_gain.clamp(0.0, 1.5);
             }
+        }
+        if session.backing_gain.is_finite() {
+            self.backing_gain = session.backing_gain.clamp(0.0, 1.5);
         }
         if session.click_gain.is_finite() {
             self.click_gain = session.click_gain.clamp(0.0, 1.5);
@@ -3424,6 +3438,7 @@ impl MixerState {
 
         let song_xfade_info = self.song_crossfade.render_block(out_frames);
         let perc_iem = self.percussion.iem_send;
+        let backing_gain = self.backing_gain;
 
         if bypassed {
             let step_rate = if no_stems { rate } else { 1.0 };
@@ -3454,8 +3469,8 @@ impl MixerState {
                 };
 
                 let mut frame = BusFrame {
-                    music_l: self.pitched_in[i * 2] + self.drums_in[i * 2],
-                    music_r: self.pitched_in[i * 2 + 1] + self.drums_in[i * 2 + 1],
+                    music_l: (self.pitched_in[i * 2] + self.drums_in[i * 2]) * backing_gain,
+                    music_r: (self.pitched_in[i * 2 + 1] + self.drums_in[i * 2 + 1]) * backing_gain,
                     iem_l: click_sample + self.cues_in[i * 2],
                     iem_r: click_sample + self.cues_in[i * 2 + 1],
                 };
@@ -3476,8 +3491,8 @@ impl MixerState {
                         let g_out = (p * FRAC_PI_2).cos();
                         let g_in = (p * FRAC_PI_2).sin();
                         let out_lr = self.song_crossfade.out_buf[i];
-                        frame.music_l = out_lr[0] * g_out + frame.music_l * g_in;
-                        frame.music_r = out_lr[1] * g_out + frame.music_r * g_in;
+                        frame.music_l = out_lr[0] * backing_gain * g_out + frame.music_l * g_in;
+                        frame.music_r = out_lr[1] * backing_gain * g_out + frame.music_r * g_in;
                     }
                 }
 
@@ -3552,8 +3567,9 @@ impl MixerState {
                 let click_sample = self.click_delay.process_sample(raw_click, latency);
 
                 let mut frame = BusFrame {
-                    music_l: self.pitched_out[i * 2] + self.drums_out[i * 2],
-                    music_r: self.pitched_out[i * 2 + 1] + self.drums_out[i * 2 + 1],
+                    music_l: (self.pitched_out[i * 2] + self.drums_out[i * 2]) * backing_gain,
+                    music_r: (self.pitched_out[i * 2 + 1] + self.drums_out[i * 2 + 1])
+                        * backing_gain,
                     iem_l: click_sample + self.cues_out[i * 2],
                     iem_r: click_sample + self.cues_out[i * 2 + 1],
                 };
@@ -3574,8 +3590,8 @@ impl MixerState {
                         let g_out = (p * FRAC_PI_2).cos();
                         let g_in = (p * FRAC_PI_2).sin();
                         let out_lr = self.song_crossfade.out_buf[i];
-                        frame.music_l = out_lr[0] * g_out + frame.music_l * g_in;
-                        frame.music_r = out_lr[1] * g_out + frame.music_r * g_in;
+                        frame.music_l = out_lr[0] * backing_gain * g_out + frame.music_l * g_in;
+                        frame.music_r = out_lr[1] * backing_gain * g_out + frame.music_r * g_in;
                     }
                 }
 
@@ -3771,6 +3787,7 @@ impl MixerState {
             snap.base_bpm = self.song.manifest.bpm;
             snap.current_bpm = self.current_bpm;
             snap.master_gain = master_gain;
+            snap.backing_gain = self.backing_gain;
             snap.click_gain = self.click_gain;
             snap.click_muted = self.click_muted;
             snap.click_mode = self.active_click_mode;
@@ -3944,6 +3961,7 @@ fn build_snapshot(
         base_bpm: song.manifest.bpm,
         current_bpm: song.manifest.bpm,
         master_gain: 1.0,
+        backing_gain: 1.0,
         click_gain: 0.85,
         click_muted: song.manifest.click_mode == ClickMode::Off,
         click_mode: song.manifest.click_mode,
@@ -6011,6 +6029,7 @@ mod tests {
             ],
             mixer: Some(crate::manifest::SetlistMixerConfig {
                 master_gain: 0.72,
+                backing_gain: 0.65,
                 click_gain: 0.58,
                 click_muted: Some(true),
             }),
@@ -6018,6 +6037,7 @@ mod tests {
 
         state.handle_command(EngineCommand::LoadSetlist(setlist), &shared);
         assert!((shared.read().unwrap().master_gain - 0.72).abs() < 1e-4);
+        assert!((state.backing_gain - 0.65).abs() < 1e-4);
         assert!((state.click_gain - 0.58).abs() < 1e-4);
         assert!(state.click_muted);
 
@@ -6189,5 +6209,110 @@ mod tests {
 
         state.handle_command(EngineCommand::Stop, &shared);
         assert!(!state.is_playing);
+    }
+
+    #[test]
+    fn test_independent_backing_gain_and_click_gain() {
+        let mut song = generate_demo_song(48_000);
+        song.manifest.bpm = 120.0;
+        song.manifest.click_mode = ClickMode::AlwaysOn;
+
+        let (producer, _consumer) = RingBuffer::<BusFrame>::new(4096);
+        let shared = Arc::new(RwLock::new(SharedRouting {
+            mode: OutputRoutingMode::SplitLeftRight,
+            master_gain: 1.0,
+        }));
+        let mut state = MixerState::new_for_test(song, 48_000, producer);
+        state.handle_command(EngineCommand::Play, &shared);
+
+        // Baseline render with backing=1.0, click=1.0
+        state.handle_command(EngineCommand::SetBackingGain(1.0), &shared);
+        state.handle_command(EngineCommand::SetClickGain(1.0), &shared);
+        let base_block = state.render_block(512);
+        let base_music_peak = base_block
+            .iter()
+            .map(|f| f.music_l.abs().max(f.music_r.abs()))
+            .fold(0.0_f32, f32::max);
+        let base_iem_peak = base_block
+            .iter()
+            .map(|f| f.iem_l.abs().max(f.iem_r.abs()))
+            .fold(0.0_f32, f32::max);
+        assert!(base_music_peak > 0.01);
+        assert!(base_iem_peak > 0.01);
+
+        // Zeroing backing_gain silences backing stems while leaving click in IEM untouched
+        state.handle_command(EngineCommand::SeekSec(0.0), &shared);
+        state.handle_command(EngineCommand::SetBackingGain(0.0), &shared);
+        state.handle_command(EngineCommand::SetClickGain(1.0), &shared);
+        let zero_backing_block = state.render_block(512);
+        let zero_music_peak = zero_backing_block
+            .iter()
+            .map(|f| f.music_l.abs().max(f.music_r.abs()))
+            .fold(0.0_f32, f32::max);
+        let click_still_peak = zero_backing_block
+            .iter()
+            .map(|f| f.iem_l.abs().max(f.iem_r.abs()))
+            .fold(0.0_f32, f32::max);
+        assert!(zero_music_peak < 1e-5, "Backing gain 0.0 must silence backing stems");
+        assert!(click_still_peak > 0.01, "Click in IEM must remain audible when backing gain is 0.0");
+
+        // Zeroing click_gain silences click while backing track & pad remain untouched
+        state.handle_command(EngineCommand::SeekSec(0.0), &shared);
+        state.handle_command(EngineCommand::SetBackingGain(0.5), &shared);
+        state.handle_command(EngineCommand::SetClickGain(0.0), &shared);
+        state.handle_command(EngineCommand::SetPadEnabled(true), &shared);
+        state.handle_command(EngineCommand::SetPadGain(0.6), &shared);
+        let half_backing_block = state.render_block(512);
+        let half_music_peak = half_backing_block
+            .iter()
+            .map(|f| f.music_l.abs().max(f.music_r.abs()))
+            .fold(0.0_f32, f32::max);
+        let click_zero_peak = half_backing_block
+            .iter()
+            .map(|f| f.iem_l.abs().max(f.iem_r.abs()))
+            .fold(0.0_f32, f32::max);
+        assert!(half_music_peak > 0.01, "Pad + 50% backing must remain audible when click is 0.0");
+        assert!(click_zero_peak < 1e-5, "Click gain 0.0 must silence click without altering backing/pad");
+    }
+
+    #[test]
+    fn test_cues_stem_routes_only_to_iem_not_foh() {
+        let mut song = generate_demo_song(48_000);
+        // Zero out all backing stems and add a non-silent is_cues stem
+        for stem in &mut song.stems {
+            stem.gain = 0.0;
+            stem.muted = true;
+        }
+        let samples = vec![0.45_f32; 48_000 * 2];
+        song.stems.push(crate::loader::DecodedStem {
+            name: "cues".into(),
+            pitched: false,
+            is_cues: true,
+            gain: 0.9,
+            muted: false,
+            samples: Arc::new(samples),
+        });
+
+        let (producer, _consumer) = RingBuffer::<BusFrame>::new(4096);
+        let shared = Arc::new(RwLock::new(SharedRouting {
+            mode: OutputRoutingMode::SplitLeftRight,
+            master_gain: 1.0,
+        }));
+        let mut state = MixerState::new_for_test(song, 48_000, producer);
+        state.handle_command(EngineCommand::SetClickMuted(true), &shared);
+        state.handle_command(EngineCommand::Play, &shared);
+
+        let block = state.render_block(512);
+        let foh_peak = block
+            .iter()
+            .map(|f| f.music_l.abs().max(f.music_r.abs()))
+            .fold(0.0_f32, f32::max);
+        let iem_peak = block
+            .iter()
+            .map(|f| f.iem_l.abs().max(f.iem_r.abs()))
+            .fold(0.0_f32, f32::max);
+
+        assert!(foh_peak < 1e-6, "IEM cues stem must never bleed into FOH (peak={foh_peak})");
+        assert!(iem_peak > 0.25, "IEM cues stem must be audible in IEM bus (peak={iem_peak})");
     }
 }

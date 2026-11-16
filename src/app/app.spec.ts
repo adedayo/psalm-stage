@@ -2183,6 +2183,7 @@ describe('App', () => {
     });
 
     await service.sendCommand({ type: 'SetMasterGain', payload: 0.72 });
+    await service.sendCommand({ type: 'SetBackingGain', payload: 0.64 });
     await service.sendCommand({ type: 'SetClickGain', payload: 0.61 });
     await service.sendCommand({ type: 'SetClickMuted', payload: true });
     await service.sendCommand({ type: 'SetStemGain', payload: { name: 'drums', gain: 0.45 } });
@@ -2192,6 +2193,7 @@ describe('App', () => {
     const savedManifest = serializeSetlistManifest(service.snapshot());
     expect(savedManifest.mixer).toEqual({
       master_gain: 0.72,
+      backing_gain: 0.64,
       click_gain: 0.61,
       click_muted: true,
     });
@@ -2202,6 +2204,7 @@ describe('App', () => {
 
     // Mutate mixer away then reload the saved setlist
     await service.sendCommand({ type: 'SetMasterGain', payload: 1.0 });
+    await service.sendCommand({ type: 'SetBackingGain', payload: 1.0 });
     await service.sendCommand({ type: 'SetClickGain', payload: 0.85 });
     await service.sendCommand({ type: 'SetClickMuted', payload: false });
     await service.sendCommand({ type: 'SetStemGain', payload: { name: 'drums', gain: 1.0 } });
@@ -2211,6 +2214,7 @@ describe('App', () => {
     await service.sendCommand({ type: 'LoadSetlist', payload: savedManifest });
     const restored = service.snapshot();
     expect(restored.master_gain).toBeCloseTo(0.72, 2);
+    expect(restored.backing_gain).toBeCloseTo(0.64, 2);
     expect(restored.click_gain).toBeCloseTo(0.61, 2);
     expect(restored.click_muted).toBe(true);
     const restoredDrums = restored.stems.find((s) => s.name === 'drums');
@@ -2342,5 +2346,367 @@ describe('App', () => {
     expect(service.snapshot().device_name).toBe('Focusrite Scarlett 4i4 USB');
     expect(service.snapshot().device_channels).toBe(4);
     expect(service.newlyDetectedOutput()).toBeNull();
+  });
+
+  it('supports unassigning MIDI keys/controls from any control via inline badges and listening banner', async () => {
+    const fixture = TestBed.createComponent(App);
+    const service = TestBed.inject(PsalmStageService);
+
+    service.midiBindings.set([
+      {
+        id: 'b-play',
+        device_name: 'Arturia',
+        channel: 1,
+        kind: 'Note',
+        number: 60,
+        behavior: 'Momentary',
+        target: { type: 'PlayStop' },
+        invert: false,
+      },
+      {
+        id: 'b-tempo-dial',
+        device_name: 'Arturia',
+        channel: 1,
+        kind: 'ControlChange',
+        number: 14,
+        behavior: 'Continuous',
+        target: { type: 'TempoDial' },
+        invert: false,
+      },
+      {
+        id: 'b-master',
+        device_name: 'Arturia',
+        channel: 1,
+        kind: 'ControlChange',
+        number: 7,
+        behavior: 'Continuous',
+        target: { type: 'MasterGain' },
+        invert: false,
+      },
+    ]);
+
+    await service.toggleMidiAssignMode(true);
+    fixture.detectChanges();
+
+    // Unassign PlayStop via inline badge × button
+    const unassignPlayBtn = fixture.nativeElement.querySelector(
+      '[data-testid="midi-unassign-playstop"]',
+    ) as HTMLButtonElement | null;
+    expect(unassignPlayBtn).toBeTruthy();
+    unassignPlayBtn?.click();
+    await Promise.resolve();
+    fixture.detectChanges();
+    expect(service.bindingLabelFor({ type: 'PlayStop' })).toBeNull();
+
+    // Click TempoDial in MIDI Assign mode -> listening banner offers Unassign button
+    const dial = fixture.nativeElement.querySelector(
+      '[data-testid="header-bpm-dial"]',
+    ) as HTMLElement;
+    dial.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    fixture.detectChanges();
+    expect(service.listeningTarget()?.target).toEqual({ type: 'TempoDial' });
+    expect(service.listeningTarget()?.behavior).toBe('Continuous');
+
+    const bannerUnassignBtn = fixture.nativeElement.querySelector(
+      '[data-testid="midi-unassign-listening-btn"]',
+    ) as HTMLButtonElement | null;
+    expect(bannerUnassignBtn).toBeTruthy();
+    bannerUnassignBtn?.click();
+    await Promise.resolve();
+    fixture.detectChanges();
+    expect(service.bindingLabelFor({ type: 'TempoDial' })).toBeNull();
+    expect(service.listeningTarget()).toBeNull();
+
+    // Unassign MasterGain via inline fader × button
+    const unassignMasterBtn = fixture.nativeElement.querySelector(
+      '[data-testid="midi-unassign-mastergain"]',
+    ) as HTMLButtonElement | null;
+    expect(unassignMasterBtn).toBeTruthy();
+    unassignMasterBtn?.click();
+    await Promise.resolve();
+    fixture.detectChanges();
+    expect(service.midiBindings().length).toBe(0);
+  });
+
+  it('provides BPM rotary dial with -/+ tap buttons, keyboard/drag steps of 1, and smooth typing of 76', async () => {
+    const fixture = TestBed.createComponent(App);
+    const service = TestBed.inject(PsalmStageService);
+    await service.sendCommand({ type: 'SetBpm', payload: 120 });
+    fixture.detectChanges();
+
+    const decBtn = fixture.nativeElement.querySelector(
+      '[data-testid="header-bpm-dec"]',
+    ) as HTMLButtonElement;
+    const incBtn = fixture.nativeElement.querySelector(
+      '[data-testid="header-bpm-inc"]',
+    ) as HTMLButtonElement;
+    const dial = fixture.nativeElement.querySelector(
+      '[data-testid="header-bpm-dial"]',
+    ) as HTMLElement;
+    const bpmInput = fixture.nativeElement.querySelector(
+      '[data-testid="header-bpm-input"]',
+    ) as HTMLInputElement;
+
+    expect(decBtn).toBeTruthy();
+    expect(incBtn).toBeTruthy();
+    expect(dial).toBeTruthy();
+    expect(bpmInput.type).toBe('text');
+
+    // - / + buttons step by 1 BPM
+    incBtn.click();
+    await Promise.resolve();
+    fixture.detectChanges();
+    expect(service.snapshot().current_bpm).toBe(121);
+
+    decBtn.click();
+    await Promise.resolve();
+    fixture.detectChanges();
+    expect(service.snapshot().current_bpm).toBe(120);
+
+    // Keyboard ArrowUp / ArrowDown on dial step by 1 BPM
+    dial.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
+    await Promise.resolve();
+    expect(service.snapshot().current_bpm).toBe(121);
+
+    dial.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    await Promise.resolve();
+    expect(service.snapshot().current_bpm).toBe(120);
+
+    // Simulate focusing header BPM textbox, clearing it, typing '7' then '6', and pressing Enter
+    bpmInput.dispatchEvent(new FocusEvent('focus'));
+    fixture.detectChanges();
+
+    bpmInput.value = '';
+    bpmInput.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    expect(bpmInput.value).toBe('');
+
+    bpmInput.value = '7';
+    bpmInput.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    expect(bpmInput.value).toBe('7');
+    expect(service.snapshot().current_bpm).toBe(120);
+
+    bpmInput.value = '76';
+    bpmInput.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    expect(bpmInput.value).toBe('76');
+
+    bpmInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await Promise.resolve();
+    fixture.detectChanges();
+    expect(service.snapshot().current_bpm).toBe(76);
+    expect(bpmInput.value).toBe('76');
+
+    // Also verify typing '76' in Loop Studio BPM textbox does not clamp '7' to 40
+    (
+      fixture.nativeElement.querySelector('[data-testid="workspace-tab-loops"]') as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const loopBpmInput = fixture.nativeElement.querySelector(
+      '[data-testid="loop-studio-bpm-input"]',
+    ) as HTMLInputElement;
+    expect(loopBpmInput).toBeTruthy();
+    loopBpmInput.dispatchEvent(new FocusEvent('focus'));
+    loopBpmInput.value = '7';
+    loopBpmInput.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    expect(loopBpmInput.value).toBe('7');
+
+    loopBpmInput.value = '76';
+    loopBpmInput.dispatchEvent(new Event('input'));
+    loopBpmInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await Promise.resolve();
+    fixture.detectChanges();
+    expect(Number(loopBpmInput.value)).toBe(76);
+  });
+
+  it('should save current setlist and start a fresh named setlist via Live Stage drawer and service', async () => {
+    const fixture = TestBed.createComponent(App);
+    const service = TestBed.inject(PsalmStageService);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    await service.sendCommand({ type: 'SetSetlistName', payload: 'Morning Worship' });
+    await service.sendCommand({
+      type: 'LoadSetlist',
+      payload: {
+        id: 'morning-worship',
+        name: 'Morning Worship',
+        sections: [{ id: 'sec-praise', name: 'Praise', kind: 'Praise', color: 'amber', collapsed: false }],
+        items: [
+          {
+            song_id: 'song-1',
+            title: 'Song One',
+            original_key: 'G',
+            base_bpm: 120,
+            key_shift_semitones: 0,
+            transition_mode: 'Manual',
+            crossfade_sec: 0,
+            ambient_pad_enabled: false,
+            section_id: 'sec-praise',
+          },
+        ],
+      },
+    });
+    service.activeSetlistPath.set('/tmp/morning-worship.json');
+    fixture.detectChanges();
+
+    expect(service.snapshot().setlist_items.length).toBe(1);
+
+    const newBtn = fixture.nativeElement.querySelector(
+      '[data-testid="live-new-setlist-btn"]',
+    ) as HTMLButtonElement;
+    expect(newBtn).toBeTruthy();
+    newBtn.click();
+    fixture.detectChanges();
+
+    const drawer = fixture.nativeElement.querySelector(
+      '[data-testid="live-new-setlist-drawer"]',
+    ) as HTMLElement;
+    expect(drawer).toBeTruthy();
+
+    // Service createNewSetlist with saveCurrent: true saves first into managedSetlists, clears items & sections, and resets activeSetlistPath
+    const okSaved = await service.createNewSetlist({
+      name: 'Evening Prayer Night',
+      saveCurrent: true,
+    });
+    expect(okSaved).toBe(true);
+    expect(
+      service.managedSetlists().some((s) => s.path === '/tmp/morning-worship.json' && s.name === 'Morning Worship'),
+    ).toBe(true);
+    expect(service.snapshot().setlist_name).toBe('Evening Prayer Night');
+    expect(service.snapshot().setlist_items.length).toBe(0);
+    expect(service.snapshot().setlist_sections.length).toBe(0);
+    expect(service.activeSetlistPath()).toBeNull();
+
+    // Service createNewSetlist with saveCurrent: false skips saving and starts fresh
+    await service.sendCommand({
+      type: 'AddSetlistSong',
+      payload: { dir: '/tmp/another-song', insert_at: null },
+    });
+    expect(service.snapshot().setlist_items.length).toBe(1);
+
+    const prevManagedCount = service.managedSetlists().length;
+    const okSkip = await service.createNewSetlist({
+      name: 'Youth Rally',
+      saveCurrent: false,
+    });
+    expect(okSkip).toBe(true);
+    expect(service.managedSetlists().length).toBe(prevManagedCount);
+    expect(service.snapshot().setlist_name).toBe('Youth Rally');
+    expect(service.snapshot().setlist_items.length).toBe(0);
+  });
+
+  it('should control Backing Track volume and Click Track volume independently on Live Stage', async () => {
+    const fixture = TestBed.createComponent(App);
+    const service = TestBed.inject(PsalmStageService);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const quickCard = fixture.nativeElement.querySelector(
+      '[data-testid="click-backing-balance-card"]',
+    ) as HTMLElement;
+    expect(quickCard).toBeTruthy();
+
+    await service.sendCommand({ type: 'SetBackingGain', payload: 0.42 });
+    await service.sendCommand({ type: 'SetClickGain', payload: 1.05 });
+    fixture.detectChanges();
+
+    const quickBackingPct = fixture.nativeElement.querySelector(
+      '[data-testid="quick-backing-pct"]',
+    ) as HTMLElement;
+    const quickClickPct = fixture.nativeElement.querySelector(
+      '[data-testid="quick-click-pct"]',
+    ) as HTMLElement;
+    const mixerBackingPct = fixture.nativeElement.querySelector(
+      '[data-testid="mixer-backing-pct"]',
+    ) as HTMLElement;
+    const mixerClickPct = fixture.nativeElement.querySelector(
+      '[data-testid="mixer-click-pct"]',
+    ) as HTMLElement;
+
+    expect(quickBackingPct.textContent?.trim()).toBe('42%');
+    expect(mixerBackingPct.textContent?.trim()).toBe('42%');
+    expect(quickClickPct.textContent?.trim()).toBe('105%');
+    expect(mixerClickPct.textContent?.trim()).toBe('105%');
+
+    // Quick click mute button toggles click without affecting backing_gain
+    const quickMuteBtn = fixture.nativeElement.querySelector(
+      '[data-testid="quick-click-mute-btn"]',
+    ) as HTMLButtonElement;
+    quickMuteBtn.click();
+    await Promise.resolve();
+    fixture.detectChanges();
+
+    expect(service.snapshot().click_muted).toBe(true);
+    expect(service.snapshot().backing_gain).toBeCloseTo(0.42, 2);
+  });
+
+  it('should generate IEM section cues in Import Workbench for Intro, Verse 1, Chorus, Outro', async () => {
+    const wbFixture = TestBed.createComponent(ImportWorkbenchComponent);
+    const wb = wbFixture.componentInstance;
+    const service = TestBed.inject(PsalmStageService);
+
+    wb.loadedDir.set('/tmp/cue-demo-song');
+    wb.manifest.set({
+      id: 'cue-demo',
+      title: 'Cue Demo',
+      artist: 'Worship Team',
+      bpm: 120,
+      time_signature: [4, 4],
+      first_downbeat_sec: 0,
+      original_key: 'G',
+      click_mode: 'AlwaysOn',
+      sections: [
+        { id: 'intro', name: 'Intro', start_bar: 1, end_bar: 5, start_sec: 0, end_sec: 8 },
+        { id: 'verse-1', name: 'Verse 1', start_bar: 5, end_bar: 9, start_sec: 8, end_sec: 16 },
+        { id: 'outro', name: 'Outro', start_bar: 9, end_bar: 13, start_sec: 16, end_sec: 24 },
+      ],
+      stems: {
+        music: {
+          file: 'music.wav',
+          pitched: true,
+          is_cues: false,
+          default_gain: 1.0,
+          muted: false,
+        },
+      },
+    });
+    wbFixture.detectChanges();
+
+    const statusBefore = wbFixture.nativeElement.querySelector(
+      '[data-testid="workbench-iem-cues-status"]',
+    ) as HTMLElement;
+    expect(statusBefore.textContent?.trim()).toBe('Not Generated');
+
+    const genBtn = wbFixture.nativeElement.querySelector(
+      '[data-testid="workbench-generate-cues-btn"]',
+    ) as HTMLButtonElement;
+    expect(genBtn).toBeTruthy();
+
+    wb.cueLeadInBeats.set(2); // 1.0s at 120 BPM
+    await wb.generateIemSectionCues();
+    wbFixture.detectChanges();
+
+    expect(wb.hasGeneratedSectionCues()).toBe(true);
+    expect(wb.autoRegenerateCuesOnSave()).toBe(true);
+    expect(wb.generatedCuePlacements().length).toBe(3);
+    expect(wb.generatedCuePlacements()[0].cue_start_sec).toBeCloseTo(0, 3);
+    expect(wb.generatedCuePlacements()[1].phrase).toBe('Verse 1');
+    expect(wb.generatedCuePlacements()[1].cue_start_sec).toBeCloseTo(7.0, 3);
+    expect(wb.generatedCuePlacements()[2].cue_start_sec).toBeCloseTo(15.0, 3);
+
+    const cuesStemSnap = service.snapshot().stems.find((s) => s.name === 'cues');
+    expect(cuesStemSnap).toBeTruthy();
+    expect(cuesStemSnap?.is_cues).toBe(true);
+    expect(cuesStemSnap?.pitched).toBe(false);
+
+    const statusAfter = wbFixture.nativeElement.querySelector(
+      '[data-testid="workbench-iem-cues-status"]',
+    ) as HTMLElement;
+    expect(statusAfter.textContent?.trim()).toBe('IEM Cues Ready');
   });
 });

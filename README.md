@@ -73,10 +73,11 @@ For detailed packaging architecture, automated CI/CD release builds, and enterpr
   <img src="docs/assets/screenshots/live-stage.png" alt="Psalm Stage Live Stage" width="840" />
 </p>
 
-| Live Stage & Tonic Pad Studio | Setlist Studio & Loop Studio |
+| Live Stage & MIDI Assign (Rotary Dials) | Tonic Pad Studio & Setlist Studio |
 | :---: | :---: |
-| <img src="docs/assets/screenshots/tonic-pad-studio.png" alt="Tonic Pad Studio" width="410" /> | <img src="docs/assets/screenshots/setlist-studio.png" alt="Setlist Studio" width="410" /> |
-| <img src="docs/assets/screenshots/loop-studio.png" alt="Loop Studio" width="410" /> | <img src="docs/assets/screenshots/import-workbench.png" alt="Import Workbench" width="410" /> |
+| <img src="docs/assets/screenshots/midi-assign-mode.png" alt="MIDI Assign Mode with Rotary Dials" width="410" /> | <img src="docs/assets/screenshots/tonic-pad-studio.png" alt="Tonic Pad Studio" width="410" /> |
+| <img src="docs/assets/screenshots/setlist-studio.png" alt="Setlist Studio" width="410" /> | <img src="docs/assets/screenshots/loop-studio.png" alt="Loop Studio" width="410" /> |
+| <img src="docs/assets/screenshots/import-workbench.png" alt="Import Workbench & IEM Cues" width="410" /> | |
 
 ### Core Architectural Invariants:
 * **Zero-Latency Native Streaming**: When playing at native tempo and key (0 semitones shift), the audio engine completely bypasses STFT phase-vocoder spectral processing. Audio streams bit-perfect from memory with zero latency and zero transient smearing.

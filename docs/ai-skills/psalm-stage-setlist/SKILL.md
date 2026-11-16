@@ -1,42 +1,34 @@
 ---
 name: psalm-stage-setlist
-description: Plan, ingest, and assemble Sunday worship setlists in Psalm Stage using the local Song Library, YouTube Workbench pipeline, and deterministic key/transition rules.
+description: Plan, ingest, and assemble Sunday worship setlists in Psalm Stage using the local Song Library, YouTube Workbench pipeline, Tonic Pad presets, Percussion Loops, and deterministic key/transition rules.
 ---
 
-# Psalm Stage Sunday Setlist Workflow
+# Psalm Stage Setlist & Workbench Workflow
 
-Use this workflow whenever a user wants to create or update a worship setlist in **Psalm Stage** from a list of songs (with or without YouTube links, keys, tempos, or medley/flow notes).
+Use the `psalm-stage` MCP tools to inspect the local library, check installed audio/AI tooling, plan and build Sunday setlists with service sections and standalone Pad/Percussion slots, manage song manifests (keys, tempos, transitions, sections, stem mixes), configure Tonic Pad and Percussion tracks, and save managed setlists.
 
-## Tools Available
+## 1. Discovery & Session Context
+- `get_toolchain_status`: Verify `yt-dlp`, `ffmpeg`, `demucs`, and `uv` availability before YouTube downloads or stem separation.
+- `get_stage_session`: Inspect current live stage state (loaded setlist/song, transport, master/backing/click gains, crossfade settings, output routing, active Tonic Pad & Percussion state).
+- `get_ai_workflow_guide`: Returns this guide bundled directly in the MCP server.
 
-Prefer the **Psalm Stage MCP tools** (`psalm-stage` MCP server) when connected, or run `psalm-stage-cli ... --json` as a fallback.
+## 2. Song Library & Manifests
+- `list_library_songs`: List songs in the Song Library with detected/effective BPM, keys, time signatures, durations, stems, and sections.
+- `match_library_song`: Match a title/artist query against existing Song Library entries.
+- `get_song_manifest` / `update_song_manifest`: Read or edit a song's `song.json` / `manifest.json` (title, artist, BPM, key, time signature, transition style/crossfade, `sections`, stem gains/mute/solo/cue flags, pad lock, percussion lock).
+- `generate_section_cues`: Synthesize an IEM-only section cue track (`section-cues.wav`, `is_cues: true`) from a song's arrangement section marks (`Intro`, `Verse 1`, `Chorus`, `Outro`, etc.) with configurable beat lead-in and pre-cue chime.
 
-## Mandatory Workflow: Plan → Confirm → Build → Review
+## 3. YouTube Search & Ingestion
+- `search_youtube_tracks`: Search YouTube for worship tracks/stems.
+- `ingest_song` / `ingest_songs_batch`: Download, analyze (BPM, key, sections), optionally separate stems (`demucs`), and publish into the Song Library. Supports setting metadata, sections, pad locks, and percussion locks.
 
-1. **Check Environment First (Once per session)**
-   - Call `get_toolchain_status` (or `psalm-stage-cli status --json`) to inspect `library_root`, `setlists_root`, and whether `yt_dlp`, `ffmpeg`, `audio_separator`, and `demucs` are available.
-   - If `yt_dlp` is missing and songs need YouTube ingest, share the returned `install_hint` rather than failing silently.
+## 4. Tonic Pad Presets & Dynamic Percussion Studio
+- `list_pad_presets`, `save_user_pad_preset`, `delete_user_pad_preset`: Browse factory and user Tonic Pad presets (`WarmAnalog`, `ShimmerCathedral`, `FeltPianoOrgan`, `SubDrone`, `BrightWorship`), or save/delete custom user presets.
+- `list_percussion_styles`, `list_percussion_kits`, `generate_percussion_kit`: Inspect worship percussion styles (`AfroWorship`, `ModernGospel`, `WarmAcoustic`, `AnthemPop`, `LoFiDevotional`) and custom acoustic/synthetic kits.
+- `list_percussion_loops`, `save_percussion_loop`, `delete_percussion_loop`, `export_percussion_loop_bundle`: Manage dynamic multi-stem custom percussion loops and export 9-stem WAV loop bundles.
 
-2. **Always Dry-Run with `plan_sunday_setlist` First**
-   - Translate the user's request into structured song items:
-     - `title`, optional `artist`, optional `youtube_url`
-     - `target_key` (e.g., `"G"`, `"Eb"`, `"F#m"`) if specified
-     - `bpm_override` if specified
-     - `transition_mode`: set `"AutoAdvance"` when the user says *"flow into"*, *"medley"*, *"no pause"*, or *"straight into"* on the preceding song; otherwise default to `"AutoPause"`.
-     - `ambient_pad_enabled`: default `true` (especially for transitions and pads).
-   - Call `plan_sunday_setlist` (or `psalm-stage-cli setlist plan --json`).
-
-3. **Confirm YouTube Search Matches Before Downloading/Separating**
-   - For any song **without** a YouTube URL that is missing from the Library, `plan_sunday_setlist` returns `needs_confirmation` with ranked YouTube search candidates (`title`, `channel`, `duration_sec`, `webpage_url`).
-   - **Always present those candidates to the user and ask them to confirm** which URL to use before calling `ingest_songs_batch` or `build` (unless the user explicitly asked you to auto-pick / auto-approve).
-   - If a library match is ambiguous (`score` between `0.60` and `0.85`), confirm whether to reuse that library song or import a fresh version.
-
-4. **Execute Batch Ingest & Create the Setlist**
-   - Once all missing songs have confirmed URLs (or `auto_approve: true`), run `create_or_update_setlist` / `psalm-stage-cli setlist build --json` (or `ingest_songs_batch` followed by `create_or_update_setlist`).
-   - Already-imported songs are automatically reused from Library provenance cache (`find_cached_library_bundle`) unless `force_reextract: true` is requested.
-   - If the configured default stem separator (`AudioSeparator` or `Demucs`) is not installed, the pipeline automatically falls back to a stereo backing track (`None`) and includes a warning.
-
-5. **Report Clearly & Highlight Workbench QA Items**
-   - Summarize the saved setlist name, file path in `setlists_root`, slot order, effective keys, semitone shifts, BPMs, and transition modes.
-   - Explicitly list any newly ingested songs (`needs_review: true`) or songs with `Original key: Unknown` / low `key_confidence`, and remind the user to open them in **Import Workbench** (`Review Needed` badge in Setlist Studio) to verify Bar 1 downbeat, key, and section markers before Sunday rehearsal.
-
+## 5. Planning & Saving Sunday Setlists
+- `plan_sunday_setlist`: Plan a Sunday setlist matching library songs (plus YouTube candidates for missing songs) with deterministic key/transition rules, `sections` (Service Sections like Call to Worship, Praise, Worship, Altar Call), standalone `PadOnly` / `PercussionGroove` slots, per-slot `pad_preset_id` / `pad_lock` / `percussion_lock`, and `mixer` levels.
+- `create_or_update_setlist`: Build or update a `.json` setlist manifest supporting song slots, standalone `PadOnly` / `PercussionGroove` slots, `sections`, `stem_mix`, crossfades, `ContinueUntilStopped`, and `mixer` (`master_gain`, `backing_gain`, `click_gain`, pad/percussion gains).
+- `list_setlists` / `get_setlist`: Inspect saved setlist `.json` manifests.
+- `save_managed_setlist`: Save a setlist manifest to an explicit path or generate a collision-safe slug file in the Managed Setlists directory (`setlists_root`).

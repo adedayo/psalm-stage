@@ -6,8 +6,12 @@ use psalm_audio_core::library::{
 };
 use psalm_audio_core::loader::save_setlist_manifest;
 use psalm_audio_core::manifest::{
-    canonicalize_source_ref, ClickMode, SetlistItem, SetlistManifest, SongManifest, TransitionMode,
+    canonicalize_source_ref, ClickMode, PadLockConfig, SetlistItem, SetlistManifest,
+    SetlistMixerConfig, SetlistSection, SetlistSlotKind, SongManifest, StemMixOverride,
+    TransitionMode,
 };
+use psalm_audio_core::pad_presets::{factory_pad_presets, list_all_pad_presets};
+use psalm_audio_core::percussion::PercussionLockConfig;
 use serde::{Deserialize, Serialize};
 
 use crate::config::{save_library_config, SeparationEngine, StemPreset, WorkbenchConfig};
@@ -18,7 +22,7 @@ use crate::pipeline::{
 };
 use crate::youtube::{search_youtube, YouTubeSearchCandidate};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct RequestedSetlistSong {
     pub title: String,
     #[serde(default)]
@@ -41,12 +45,28 @@ pub struct RequestedSetlistSong {
     pub pad_key_override: Option<String>,
     #[serde(default)]
     pub click_mode: Option<ClickMode>,
+    #[serde(default)]
+    pub slot_kind: Option<SetlistSlotKind>,
+    #[serde(default)]
+    pub section_id: Option<String>,
+    #[serde(default)]
+    pub time_signature: Option<[u8; 2]>,
+    #[serde(default)]
+    pub pad_preset_id: Option<String>,
+    #[serde(default)]
+    pub pad_lock: Option<PadLockConfig>,
+    #[serde(default)]
+    pub percussion_lock: Option<PercussionLockConfig>,
+    #[serde(default)]
+    pub stem_mix: Vec<StemMixOverride>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SetlistPlanRequest {
     #[serde(default = "default_setlist_name")]
     pub setlist_name: String,
+    #[serde(default)]
+    pub sections: Vec<SetlistSection>,
     pub songs: Vec<RequestedSetlistSong>,
     #[serde(default)]
     pub auto_approve: bool,
@@ -94,6 +114,8 @@ pub struct PlannedSongResolution {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SetlistPlanResult {
     pub setlist_name: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub sections: Vec<SetlistSection>,
     pub ready_to_build: bool,
     pub from_library_count: usize,
     pub to_ingest_count: usize,
@@ -108,7 +130,11 @@ pub struct SetlistPlanResult {
 pub struct SetlistBuildRequest {
     #[serde(default = "default_setlist_name")]
     pub setlist_name: String,
+    #[serde(default)]
+    pub sections: Vec<SetlistSection>,
     pub songs: Vec<RequestedSetlistSong>,
+    #[serde(default)]
+    pub mixer: Option<SetlistMixerConfig>,
     #[serde(default)]
     pub auto_approve: bool,
     #[serde(default)]
@@ -137,9 +163,18 @@ pub struct SetlistBuildResult {
     pub warnings: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ManualSetlistItemInput {
-    pub song_dir: String,
+    #[serde(default)]
+    pub song_dir: Option<String>,
+    #[serde(default)]
+    pub song_id: Option<String>,
+    #[serde(default)]
+    pub title: Option<String>,
+    #[serde(default)]
+    pub original_key: Option<String>,
+    #[serde(default)]
+    pub base_bpm: Option<f64>,
     #[serde(default)]
     pub target_key: Option<String>,
     #[serde(default)]
@@ -156,6 +191,20 @@ pub struct ManualSetlistItemInput {
     pub pad_key_override: Option<String>,
     #[serde(default)]
     pub click_mode: Option<ClickMode>,
+    #[serde(default)]
+    pub slot_kind: Option<SetlistSlotKind>,
+    #[serde(default)]
+    pub section_id: Option<String>,
+    #[serde(default)]
+    pub time_signature: Option<[u8; 2]>,
+    #[serde(default)]
+    pub pad_preset_id: Option<String>,
+    #[serde(default)]
+    pub pad_lock: Option<PadLockConfig>,
+    #[serde(default)]
+    pub percussion_lock: Option<PercussionLockConfig>,
+    #[serde(default)]
+    pub stem_mix: Vec<StemMixOverride>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -165,7 +214,11 @@ pub struct SetlistCreateRequest {
     pub id: Option<String>,
     #[serde(default)]
     pub output_path: Option<String>,
+    #[serde(default)]
+    pub sections: Vec<SetlistSection>,
     pub items: Vec<ManualSetlistItemInput>,
+    #[serde(default)]
+    pub mixer: Option<SetlistMixerConfig>,
 }
 
 pub fn sanitize_setlist_slug(name: &str) -> String {
@@ -186,6 +239,40 @@ pub fn sanitize_setlist_slug(name: &str) -> String {
     } else {
         trimmed
     }
+}
+
+fn resolve_pad_lock_for_slot(
+    explicit: Option<&PadLockConfig>,
+    preset_id: Option<&str>,
+    config_dir: Option<&Path>,
+    warnings: &mut Vec<String>,
+) -> Option<PadLockConfig> {
+    if let Some(lock) = explicit {
+        return Some(lock.clone());
+    }
+    let id = preset_id.map(str::trim).filter(|s| !s.is_empty())?;
+    let presets = config_dir
+        .map(list_all_pad_presets)
+        .unwrap_or_else(factory_pad_presets);
+    if let Some(found) = presets
+        .into_iter()
+        .find(|p| p.id.eq_ignore_ascii_case(id) || p.name.eq_ignore_ascii_case(id))
+    {
+        return Some(PadLockConfig {
+            enabled: true,
+            gain: 0.45,
+            preset_id: Some(found.id),
+            preset_name: Some(found.name),
+            layers: found.layers,
+            brightness: found.brightness,
+            shimmer: found.shimmer,
+            pan: found.pan,
+        });
+    }
+    warnings.push(format!(
+        "Pad preset '{id}' was not found in factory or user presets; leaving pad unlocked."
+    ));
+    None
 }
 
 fn compute_shift_with_note(
@@ -253,6 +340,41 @@ where
 
     for (slot, song) in req.songs.iter().enumerate() {
         let mut notes = Vec::new();
+        let slot_kind = song.slot_kind.unwrap_or(SetlistSlotKind::SongBundle);
+        if matches!(
+            slot_kind,
+            SetlistSlotKind::PadOnly | SetlistSlotKind::PercussionGroove
+        ) {
+            from_library_count += 1;
+            let key = song
+                .target_key
+                .clone()
+                .filter(|s| !s.trim().is_empty())
+                .unwrap_or_else(|| "C".to_string());
+            let default_bpm = match slot_kind {
+                SetlistSlotKind::PercussionGroove => 120.0,
+                _ => 72.0,
+            };
+            notes.push(format!("Standalone {:?} slot (no backing stems required).", slot_kind));
+            items.push(PlannedSongResolution {
+                slot,
+                requested: song.clone(),
+                status: SongResolutionStatus::ReadyFromLibrary,
+                matched_library_dir: None,
+                matched_song_id: Some(sanitize_setlist_slug(&song.title)),
+                matched_title: Some(song.title.clone()),
+                original_key: Some(key.clone()),
+                effective_key: Some(key),
+                key_shift_semitones: 0,
+                bpm: Some(song.bpm_override.unwrap_or(default_bpm)),
+                selected_youtube_url: None,
+                library_candidates: Vec::new(),
+                youtube_candidates: Vec::new(),
+                notes,
+            });
+            continue;
+        }
+
         let matches = match_library_songs(
             entries,
             &song.title,
@@ -476,6 +598,7 @@ where
 
     SetlistPlanResult {
         setlist_name: req.setlist_name.clone(),
+        sections: req.sections.clone(),
         ready_to_build: needs_confirmation_count == 0 && blocked_count == 0,
         from_library_count,
         to_ingest_count,
@@ -495,6 +618,7 @@ pub fn build_sunday_setlist(
 ) -> Result<SetlistBuildResult, String> {
     let plan_req = SetlistPlanRequest {
         setlist_name: req.setlist_name.clone(),
+        sections: req.sections.clone(),
         songs: req.songs.clone(),
         auto_approve: req.auto_approve,
         search_limit: 5,
@@ -591,6 +715,62 @@ pub fn build_sunday_setlist(
     let mut review_required_songs: Vec<String> = Vec::new();
 
     for planned in &plan.items {
+        let slot_kind = planned
+            .requested
+            .slot_kind
+            .unwrap_or(SetlistSlotKind::SongBundle);
+        let pad_lock = resolve_pad_lock_for_slot(
+            planned.requested.pad_lock.as_ref(),
+            planned.requested.pad_preset_id.as_deref(),
+            config_dir,
+            &mut warnings,
+        );
+
+        if matches!(
+            slot_kind,
+            SetlistSlotKind::PadOnly | SetlistSlotKind::PercussionGroove
+        ) {
+            let key = planned
+                .requested
+                .target_key
+                .clone()
+                .filter(|s| !s.trim().is_empty())
+                .unwrap_or_else(|| "C".to_string());
+            let base_bpm = match slot_kind {
+                SetlistSlotKind::PercussionGroove => 120.0,
+                _ => 72.0,
+            };
+            let base_click_mode = match slot_kind {
+                SetlistSlotKind::PadOnly => ClickMode::Off,
+                _ => ClickMode::AlwaysOn,
+            };
+            final_items.push(SetlistItem {
+                song_id: sanitize_setlist_slug(&planned.requested.title),
+                song_dir: None,
+                title: Some(planned.requested.title.clone()),
+                original_key: Some(key),
+                base_bpm: Some(planned.requested.bpm_override.unwrap_or(base_bpm)),
+                base_click_mode: Some(base_click_mode),
+                key_shift_semitones: 0,
+                bpm_override: planned.requested.bpm_override,
+                click_mode: planned.requested.click_mode,
+                transition_mode: planned
+                    .requested
+                    .transition_mode
+                    .unwrap_or(TransitionMode::AutoPause),
+                crossfade_sec: planned.requested.crossfade_sec.unwrap_or(2.0).clamp(0.0, 10.0),
+                ambient_pad_enabled: planned.requested.ambient_pad_enabled.unwrap_or(true),
+                pad_key_override: planned.requested.pad_key_override.clone(),
+                pad_lock,
+                section_id: planned.requested.section_id.clone(),
+                slot_kind,
+                time_signature: planned.requested.time_signature,
+                percussion_lock: planned.requested.percussion_lock.clone(),
+                stem_mix: planned.requested.stem_mix.clone(),
+            });
+            continue;
+        }
+
         let song_dir = match planned.status {
             SongResolutionStatus::ReadyFromLibrary => planned
                 .matched_library_dir
@@ -647,7 +827,12 @@ pub fn build_sunday_setlist(
             crossfade_sec: planned.requested.crossfade_sec.unwrap_or(2.0).clamp(0.0, 10.0),
             ambient_pad_enabled: planned.requested.ambient_pad_enabled.unwrap_or(true),
             pad_key_override: planned.requested.pad_key_override.clone(),
-            ..Default::default()
+            pad_lock,
+            section_id: planned.requested.section_id.clone(),
+            slot_kind,
+            time_signature: planned.requested.time_signature,
+            percussion_lock: planned.requested.percussion_lock.clone(),
+            stem_mix: planned.requested.stem_mix.clone(),
         });
     }
 
@@ -655,9 +840,9 @@ pub fn build_sunday_setlist(
     let setlist = SetlistManifest {
         id: setlist_id.clone(),
         name: req.setlist_name.clone(),
-        sections: vec![],
+        sections: req.sections.clone(),
         items: final_items,
-        mixer: None,
+        mixer: req.mixer.clone(),
     };
     setlist.validate().map_err(|e| e.to_string())?;
 
@@ -692,10 +877,85 @@ pub fn create_or_update_setlist_from_items(
     let mut warnings = Vec::new();
     let mut items = Vec::with_capacity(req.items.len());
 
-    for input in &req.items {
-        let dir_path = PathBuf::from(&input.song_dir);
+    for (idx, input) in req.items.iter().enumerate() {
+        let slot_kind = input.slot_kind.unwrap_or(SetlistSlotKind::SongBundle);
+        let pad_lock = resolve_pad_lock_for_slot(
+            input.pad_lock.as_ref(),
+            input.pad_preset_id.as_deref(),
+            config_dir,
+            &mut warnings,
+        );
+
+        if matches!(
+            slot_kind,
+            SetlistSlotKind::PadOnly | SetlistSlotKind::PercussionGroove
+        ) && input.song_dir.as_ref().is_none_or(|d| d.trim().is_empty())
+        {
+            let title = input
+                .title
+                .clone()
+                .filter(|s| !s.trim().is_empty())
+                .unwrap_or_else(|| match slot_kind {
+                    SetlistSlotKind::PadOnly => format!("Ambient Pad {}", idx + 1),
+                    _ => format!("Percussion Groove {}", idx + 1),
+                });
+            let song_id = input
+                .song_id
+                .clone()
+                .filter(|s| !s.trim().is_empty())
+                .unwrap_or_else(|| sanitize_setlist_slug(&title));
+            let key = input
+                .original_key
+                .clone()
+                .or_else(|| input.target_key.clone())
+                .filter(|s| !s.trim().is_empty())
+                .unwrap_or_else(|| "C".to_string());
+            let base_bpm = input.base_bpm.unwrap_or(match slot_kind {
+                SetlistSlotKind::PercussionGroove => 120.0,
+                _ => 72.0,
+            });
+            let base_click_mode = match slot_kind {
+                SetlistSlotKind::PadOnly => ClickMode::Off,
+                _ => ClickMode::AlwaysOn,
+            };
+            items.push(SetlistItem {
+                song_id,
+                song_dir: None,
+                title: Some(title),
+                original_key: Some(key),
+                base_bpm: Some(base_bpm),
+                base_click_mode: Some(base_click_mode),
+                key_shift_semitones: input.key_shift_semitones.unwrap_or(0).clamp(-12, 12),
+                bpm_override: input.bpm_override,
+                click_mode: input.click_mode,
+                transition_mode: input.transition_mode.unwrap_or(TransitionMode::AutoPause),
+                crossfade_sec: input.crossfade_sec.unwrap_or(2.0).clamp(0.0, 10.0),
+                ambient_pad_enabled: input.ambient_pad_enabled.unwrap_or(true),
+                pad_key_override: input.pad_key_override.clone(),
+                pad_lock,
+                section_id: input.section_id.clone(),
+                slot_kind,
+                time_signature: input.time_signature,
+                percussion_lock: input.percussion_lock.clone(),
+                stem_mix: input.stem_mix.clone(),
+            });
+            continue;
+        }
+
+        let song_dir_str = input
+            .song_dir
+            .as_ref()
+            .filter(|s| !s.trim().is_empty())
+            .ok_or_else(|| {
+                format!(
+                    "Item {} requires 'song_dir' unless slot_kind is 'PadOnly' or 'PercussionGroove'",
+                    idx + 1
+                )
+            })?
+            .clone();
+        let dir_path = PathBuf::from(&song_dir_str);
         let manifest = SongManifest::from_file(&dir_path.join("manifest.json"))
-            .map_err(|e| format!("Invalid song bundle at '{}': {e}", input.song_dir))?;
+            .map_err(|e| format!("Invalid song bundle at '{song_dir_str}': {e}"))?;
 
         let shift = if let Some(explicit_shift) = input.key_shift_semitones {
             explicit_shift.clamp(-12, 12)
@@ -708,8 +968,8 @@ pub fn create_or_update_setlist_from_items(
 
         items.push(SetlistItem {
             song_id: manifest.id.clone(),
-            song_dir: Some(input.song_dir.clone()),
-            title: Some(manifest.title.clone()),
+            song_dir: Some(song_dir_str),
+            title: input.title.clone().or_else(|| Some(manifest.title.clone())),
             original_key: Some(manifest.original_key.clone()),
             base_bpm: Some(manifest.bpm),
             base_click_mode: Some(manifest.click_mode),
@@ -720,7 +980,12 @@ pub fn create_or_update_setlist_from_items(
             crossfade_sec: input.crossfade_sec.unwrap_or(2.0).clamp(0.0, 10.0),
             ambient_pad_enabled: input.ambient_pad_enabled.unwrap_or(true),
             pad_key_override: input.pad_key_override.clone(),
-            ..Default::default()
+            pad_lock,
+            section_id: input.section_id.clone(),
+            slot_kind,
+            time_signature: input.time_signature,
+            percussion_lock: input.percussion_lock.clone(),
+            stem_mix: input.stem_mix.clone(),
         });
     }
 
@@ -732,9 +997,9 @@ pub fn create_or_update_setlist_from_items(
     let manifest = SetlistManifest {
         id: id.clone(),
         name: req.name.clone(),
-        sections: vec![],
+        sections: req.sections.clone(),
         items,
-        mixer: None,
+        mixer: req.mixer.clone(),
     };
     manifest.validate().map_err(|e| e.to_string())?;
 
@@ -748,6 +1013,39 @@ pub fn create_or_update_setlist_from_items(
     let out_str = out_path.to_string_lossy().to_string();
     record_recent_setlist(config_dir, lib_cfg, &out_str);
     Ok((out_str, manifest, warnings))
+}
+
+/// Saves a `SetlistManifest` to an explicit path or a unique `.json` file under
+/// `lib_cfg.setlists_root`, creating parent directories and recording the file in `recent_setlists`.
+pub fn save_managed_setlist(
+    setlist: &SetlistManifest,
+    explicit_path: Option<&Path>,
+    lib_cfg: &LibraryConfig,
+    config_dir: Option<&Path>,
+) -> Result<String, String> {
+    let mut normalized = setlist.clone();
+    if normalized.id.trim().is_empty() {
+        normalized.id = sanitize_setlist_slug(&normalized.name);
+    }
+
+    let out_path = if let Some(explicit) = explicit_path.filter(|p| !p.as_os_str().is_empty()) {
+        explicit.to_path_buf()
+    } else {
+        let root = PathBuf::from(&lib_cfg.setlists_root);
+        let slug = sanitize_setlist_slug(&normalized.name);
+        let mut candidate = root.join(format!("{slug}.json"));
+        let mut suffix = 2usize;
+        while candidate.exists() {
+            candidate = root.join(format!("{slug}-{suffix}.json"));
+            suffix += 1;
+        }
+        candidate
+    };
+
+    save_setlist_manifest(&out_path, &normalized).map_err(|e| e.to_string())?;
+    let out_str = out_path.to_string_lossy().to_string();
+    record_recent_setlist(config_dir, lib_cfg, &out_str);
+    Ok(out_str)
 }
 
 fn record_recent_setlist(config_dir: Option<&Path>, lib_cfg: &LibraryConfig, path: &str) {
@@ -823,28 +1121,16 @@ mod tests {
             RequestedSetlistSong {
                 title: "Gratitude".into(),
                 artist: Some("Brandon Lake".into()),
-                youtube_url: None,
-                local_file: None,
                 target_key: Some("G".into()),
-                bpm_override: None,
                 transition_mode: Some(TransitionMode::AutoAdvance),
-                crossfade_sec: None,
                 ambient_pad_enabled: Some(true),
-                pad_key_override: None,
-                click_mode: None,
+                ..Default::default()
             },
             RequestedSetlistSong {
                 title: "Goodness of God".into(),
                 artist: Some("Bethel".into()),
-                youtube_url: None,
-                local_file: None,
                 target_key: Some("A".into()),
-                bpm_override: None,
-                transition_mode: None,
-                crossfade_sec: None,
-                ambient_pad_enabled: None,
-                pad_key_override: None,
-                click_mode: None,
+                ..Default::default()
             },
         ];
 
@@ -866,6 +1152,7 @@ mod tests {
         let plan_manual = plan_with_entries_and_search(
             &SetlistPlanRequest {
                 setlist_name: "Sunday Nov 15".into(),
+                sections: Vec::new(),
                 songs: songs.clone(),
                 auto_approve: false,
                 search_limit: 5,
@@ -892,6 +1179,7 @@ mod tests {
         let plan_auto = plan_with_entries_and_search(
             &SetlistPlanRequest {
                 setlist_name: "Sunday Nov 15".into(),
+                sections: Vec::new(),
                 songs,
                 auto_approve: true,
                 search_limit: 5,
@@ -970,34 +1258,26 @@ mod tests {
         let res = build_sunday_setlist(
             &SetlistBuildRequest {
                 setlist_name: "Sunday Nov 15".into(),
+                sections: Vec::new(),
                 songs: vec![
                     RequestedSetlistSong {
                         title: "Gratitude".into(),
                         artist: Some("Brandon Lake".into()),
-                        youtube_url: None,
-                        local_file: None,
                         target_key: Some("G".into()),
-                        bpm_override: None,
                         transition_mode: Some(TransitionMode::AutoAdvance),
-                        crossfade_sec: None,
                         ambient_pad_enabled: Some(true),
-                        pad_key_override: None,
-                        click_mode: None,
+                        ..Default::default()
                     },
                     RequestedSetlistSong {
                         title: "Praise".into(),
                         artist: Some("Elevation".into()),
-                        youtube_url: None,
                         local_file: Some(song2_wav.to_string_lossy().to_string()),
-                        target_key: None,
                         bpm_override: Some(127.0),
-                        transition_mode: None,
-                        crossfade_sec: None,
                         ambient_pad_enabled: Some(true),
-                        pad_key_override: None,
-                        click_mode: None,
+                        ..Default::default()
                     },
                 ],
+                mixer: None,
                 auto_approve: false,
                 output_path: None,
                 separation_engine: None,
@@ -1022,6 +1302,107 @@ mod tests {
         assert_eq!(setlist.items[0].transition_mode, TransitionMode::AutoAdvance);
         assert_eq!(setlist.items[1].bpm_override, Some(127.0));
         assert!(!res.review_required_songs.is_empty());
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn test_sections_standalone_slots_pad_preset_and_save_managed_setlist() {
+        use psalm_audio_core::manifest::ServiceSectionKind;
+        use psalm_audio_core::percussion_patterns::{GrooveIntensity, PercussionMode, PercussionStyle};
+
+        let root = std::env::temp_dir().join(format!("psalm_managed_set_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let setlists_dir = root.join("Setlists");
+        let config_dir = root.join("Config");
+        std::fs::create_dir_all(&config_dir).unwrap();
+
+        let lib_cfg = LibraryConfig {
+            library_root: root.join("Library").to_string_lossy().to_string(),
+            setlists_root: setlists_dir.to_string_lossy().to_string(),
+            linked_folders: vec![],
+            recent_setlists: vec![],
+        };
+
+        let req = SetlistCreateRequest {
+            name: "Worship Night".into(),
+            id: None,
+            output_path: None,
+            sections: vec![SetlistSection {
+                id: "sec-ministry".into(),
+                name: "Ministry".into(),
+                kind: ServiceSectionKind::Ministry,
+                color: Some("#22d3ee".into()),
+                collapsed: false,
+                note: None,
+            }],
+            items: vec![
+                ManualSetlistItemInput {
+                    title: Some("Prayer Underscore".into()),
+                    slot_kind: Some(SetlistSlotKind::PadOnly),
+                    section_id: Some("sec-ministry".into()),
+                    target_key: Some("G".into()),
+                    pad_preset_id: Some("shimmer-cathedral".into()),
+                    transition_mode: Some(TransitionMode::ContinueUntilStopped),
+                    ..Default::default()
+                },
+                ManualSetlistItemInput {
+                    title: Some("Offering Groove".into()),
+                    slot_kind: Some(SetlistSlotKind::PercussionGroove),
+                    section_id: Some("sec-ministry".into()),
+                    base_bpm: Some(124.0),
+                    time_signature: Some([4, 4]),
+                    percussion_lock: Some(PercussionLockConfig {
+                        mode: PercussionMode::PercussionOnly,
+                        style: PercussionStyle::Makossa,
+                        intensity: GrooveIntensity::High,
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                },
+            ],
+            mixer: Some(SetlistMixerConfig {
+                master_gain: 0.95,
+                backing_gain: 0.88,
+                click_gain: 0.75,
+                click_muted: Some(false),
+            }),
+        };
+
+        let (path1, manifest, warnings) =
+            create_or_update_setlist_from_items(&req, &lib_cfg, Some(&config_dir)).unwrap();
+        assert!(warnings.is_empty());
+        assert_eq!(manifest.sections.len(), 1);
+        assert_eq!(manifest.items.len(), 2);
+        assert_eq!(manifest.items[0].slot_kind, SetlistSlotKind::PadOnly);
+        assert_eq!(
+            manifest.items[0]
+                .pad_lock
+                .as_ref()
+                .and_then(|l| l.preset_id.as_deref()),
+            Some("shimmer-cathedral")
+        );
+        assert_eq!(
+            manifest.items[1].slot_kind,
+            SetlistSlotKind::PercussionGroove
+        );
+        assert_eq!(
+            manifest.items[1].percussion_lock.as_ref().map(|p| p.style),
+            Some(PercussionStyle::Makossa)
+        );
+        assert_eq!(manifest.mixer.as_ref().map(|m| m.master_gain), Some(0.95));
+
+        // Saving again via save_managed_setlist without explicit path produces unique filename
+        let path2 = save_managed_setlist(&manifest, None, &lib_cfg, Some(&config_dir)).unwrap();
+        assert_ne!(path1, path2);
+        assert!(path2.ends_with("worship-night-2.json"));
+        assert!(Path::new(&path2).exists());
+
+        // Saving with explicit path overwrites cleanly
+        let path3 =
+            save_managed_setlist(&manifest, Some(Path::new(&path1)), &lib_cfg, Some(&config_dir))
+                .unwrap();
+        assert_eq!(path3, path1);
 
         let _ = std::fs::remove_dir_all(&root);
     }

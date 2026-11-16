@@ -54,6 +54,7 @@ jobs:
         run: npm ci
 
       - name: Verify documentation is in sync with manifests & CLI
+        if: ${{ !startsWith(github.head_ref, 'release-please--') }}
         run: node scripts/sync-docs.mjs --check
 
       - name: Build Astro + Starlight site

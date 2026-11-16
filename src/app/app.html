@@ -120,8 +120,20 @@
       </button>
 
       @if (stage.bindingLabelFor({ type: 'PlayStop' }); as bindLabel) {
-        <span hlmBadge variant="outline" class="border-amber-500/40 text-amber-300 text-[10px]">
-          {{ bindLabel }}
+        <span hlmBadge variant="outline" class="border-amber-500/40 text-amber-300 text-[10px] gap-1">
+          <span>{{ bindLabel }}</span>
+          @if (stage.midiAssignMode()) {
+            <button
+              type="button"
+              data-testid="midi-unassign-playstop"
+              aria-label="Unassign MIDI from Play / Stop"
+              title="Unassign MIDI"
+              class="ml-0.5 rounded px-1 text-rose-300 hover:bg-rose-500/20 hover:text-rose-200"
+              (click)="unassignMidi({ type: 'PlayStop' }, $event)"
+            >
+              ×
+            </button>
+          }
         </span>
       }
 
@@ -179,6 +191,21 @@
         >
           {{ snap().click_muted ? 'Click: MUTED (M)' : 'Click: ON (M)' }}
         </button>
+        @if (stage.midiAssignMode() && stage.bindingLabelFor({ type: 'ToggleClick' }); as clickBind) {
+          <span hlmBadge variant="outline" class="border-amber-500/40 text-amber-300 text-[10px] gap-1">
+            <span>{{ clickBind }}</span>
+            <button
+              type="button"
+              data-testid="midi-unassign-toggleclick"
+              aria-label="Unassign MIDI from Click Mute"
+              title="Unassign MIDI"
+              class="rounded px-1 text-rose-300 hover:bg-rose-500/20 hover:text-rose-200"
+              (click)="unassignMidi({ type: 'ToggleClick' }, $event)"
+            >
+              ×
+            </button>
+          </span>
+        }
 
         <div class="flex flex-col justify-center rounded-md border border-zinc-800 bg-zinc-950 px-2 h-11">
           <div class="text-[9px] uppercase tracking-wider text-zinc-500 leading-none mb-0.5">
@@ -206,51 +233,70 @@
     </div>
 
     <!-- Key, BPM, MIDI Assign & Live Lock -->
-    <div class="flex flex-wrap items-center gap-2">
-      <!-- Key Control -->
-      <div class="flex items-center gap-1 rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1">
-        <button hlmBtn variant="ghost" size="sm" type="button" [disabled]="liveLock() && !stage.midiAssignMode()" (click)="onKeyAdjust(-1)">-</button>
-        <div
-          class="px-2 text-center min-w-[54px]"
-          [title]="snap().original_key === 'Unknown' ? 'Key could not be detected automatically — open Setup or Workbench to set' : 'Song Key'"
-        >
-          <div class="text-[10px] text-zinc-500 uppercase">Key</div>
-          <div
-            class="text-sm font-semibold"
-            [class]="snap().original_key === 'Unknown' ? 'text-zinc-400' : 'text-amber-300'"
-          >
-            {{ snap().current_key }}
-            @if (snap().key_shift_semitones !== 0 && snap().original_key !== 'Unknown') {
-              <span class="text-[10px] text-zinc-400">({{ snap().key_shift_semitones > 0 ? '+' : '' }}{{ snap().key_shift_semitones }})</span>
-            }
-          </div>
-        </div>
-        <button hlmBtn variant="ghost" size="sm" type="button" [disabled]="liveLock() && !stage.midiAssignMode()" (click)="onKeyAdjust(1)">+</button>
-      </div>
+    <div class="flex flex-wrap items-center gap-2.5">
+      <!-- Key Control Dial -->
+      <app-rotary-dial
+        label="KEY"
+        [value]="snap().key_shift_semitones"
+        [min]="-12"
+        [max]="12"
+        [step]="1"
+        [displayText]="snap().current_key"
+        [subText]="snap().key_shift_semitones !== 0 && snap().original_key !== 'Unknown' ? (snap().key_shift_semitones > 0 ? '+' : '') + snap().key_shift_semitones : null"
+        [editable]="false"
+        [disabled]="liveLock()"
+        accent="amber"
+        dialAriaLabel="Key Transpose Rotary Dial"
+        decrementAriaLabel="Transpose Key Down 1 Semitone"
+        incrementAriaLabel="Transpose Key Up 1 Semitone"
+        dialTestId="header-key-dial"
+        decrementTestId="header-key-dec"
+        incrementTestId="header-key-inc"
+        [midiAssignMode]="stage.midiAssignMode()"
+        [dialBindingLabel]="stage.bindingLabelFor({ type: 'KeyDial' })"
+        [downBindingLabel]="stage.bindingLabelFor({ type: 'KeyDown' })"
+        [upBindingLabel]="stage.bindingLabelFor({ type: 'KeyUp' })"
+        (stepChange)="onKeyAdjust($event)"
+        (dialMidiClick)="onKeyDialMidiAssign()"
+        (downMidiClick)="onKeyAdjust(-1)"
+        (upMidiClick)="onKeyAdjust(1)"
+        (unassignDial)="unassignMidi({ type: 'KeyDial' })"
+        (unassignDown)="unassignMidi({ type: 'KeyDown' })"
+        (unassignUp)="unassignMidi({ type: 'KeyUp' })"
+      />
 
-      <!-- BPM Control -->
-      <div class="flex items-center gap-1 rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1">
-        <button hlmBtn variant="ghost" size="sm" type="button" [disabled]="liveLock() && !stage.midiAssignMode()" (click)="onBpmAdjust(-1)">-</button>
-        <div class="px-2 text-center min-w-[60px]">
-          <div class="text-[10px] text-zinc-500 uppercase">BPM</div>
-          @if (!liveLock()) {
-            <input
-              type="number"
-              min="30"
-              max="260"
-              step="0.5"
-              aria-label="Global Tempo BPM"
-              data-testid="header-bpm-input"
-              class="w-16 rounded bg-zinc-900/90 border border-zinc-800 px-1 py-0.5 text-center text-sm font-mono font-semibold text-zinc-100 focus:outline-none focus:ring-1 focus:ring-amber-500/50"
-              [ngModel]="snap().current_bpm"
-              (ngModelChange)="onHeaderBpmChange($event)"
-            />
-          } @else {
-            <div data-testid="header-bpm-display" class="text-sm font-mono font-semibold">{{ snap().current_bpm | number: '1.0-1' }}</div>
-          }
-        </div>
-        <button hlmBtn variant="ghost" size="sm" type="button" [disabled]="liveLock() && !stage.midiAssignMode()" (click)="onBpmAdjust(1)">+</button>
-      </div>
+      <!-- BPM Control Dial -->
+      <app-rotary-dial
+        label="BPM"
+        [value]="snap().current_bpm"
+        [min]="30"
+        [max]="260"
+        [step]="1"
+        [editable]="true"
+        [disabled]="liveLock()"
+        accent="amber"
+        inputAriaLabel="Global Tempo BPM"
+        dialAriaLabel="Tempo BPM Rotary Dial"
+        decrementAriaLabel="Decrease Tempo by 1 BPM"
+        incrementAriaLabel="Increase Tempo by 1 BPM"
+        inputTestId="header-bpm-input"
+        displayTestId="header-bpm-display"
+        dialTestId="header-bpm-dial"
+        decrementTestId="header-bpm-dec"
+        incrementTestId="header-bpm-inc"
+        [midiAssignMode]="stage.midiAssignMode()"
+        [dialBindingLabel]="stage.bindingLabelFor({ type: 'TempoDial' })"
+        [downBindingLabel]="stage.bindingLabelFor({ type: 'TempoDown' })"
+        [upBindingLabel]="stage.bindingLabelFor({ type: 'TempoUp' })"
+        (stepChange)="onBpmAdjust($event)"
+        (valueCommit)="onHeaderBpmChange($event)"
+        (dialMidiClick)="onTempoDialMidiAssign()"
+        (downMidiClick)="onBpmAdjust(-1)"
+        (upMidiClick)="onBpmAdjust(1)"
+        (unassignDial)="unassignMidi({ type: 'TempoDial' })"
+        (unassignDown)="unassignMidi({ type: 'TempoDown' })"
+        (unassignUp)="unassignMidi({ type: 'TempoUp' })"
+      />
 
       <button
         hlmBtn
@@ -283,7 +329,7 @@
   </header>
 
   @if (stage.midiAssignMode()) {
-    <div class="bg-amber-500/15 border-b border-amber-500/30 px-4 py-2 flex items-center justify-between text-xs text-amber-200">
+    <div class="bg-amber-500/15 border-b border-amber-500/30 px-4 py-2 flex flex-wrap items-center justify-between gap-2 text-xs text-amber-200">
       <div>
         @if (stage.listeningTarget(); as target) {
           <span class="font-semibold animate-pulse">
@@ -291,12 +337,29 @@
           </span>
         } @else {
           <span>
-            <strong>MIDI Assign Mode:</strong> Click any button, section tile, or "Map MIDI" badge on a fader, then move a control on your MIDI keyboard.
+            <strong>MIDI Assign Mode:</strong> Click any button, dial ring, section tile, or "Map Knob" badge to assign MIDI — click × on any badge to unassign.
+            @if (stage.midiBindings().length > 0) {
+              <span class="ml-1.5 font-mono text-amber-300">({{ stage.midiBindings().length }} mapped)</span>
+            }
           </span>
         }
       </div>
-      @if (stage.listeningTarget()) {
-        <button hlmBtn variant="outline" size="sm" type="button" (click)="stage.cancelListening()">Cancel</button>
+      @if (stage.listeningTarget(); as target) {
+        <div class="flex items-center gap-2">
+          @if (stage.bindingsFor(target.target).length > 0) {
+            <button
+              hlmBtn
+              variant="destructive"
+              size="sm"
+              type="button"
+              data-testid="midi-unassign-listening-btn"
+              (click)="unassignMidi(target.target)"
+            >
+              Unassign ({{ stage.bindingLabelFor(target.target) }})
+            </button>
+          }
+          <button hlmBtn variant="outline" size="sm" type="button" (click)="stage.cancelListening()">Cancel</button>
+        </div>
       }
     </div>
   }
@@ -352,10 +415,14 @@
     </main>
   } @else if (workspaceMode() === 'workbench') {
     <main class="flex-1 p-4">
-      <app-import-workbench
-        [targetFolder]="workbenchTargetDir()"
-        (goToStudio)="setWorkspaceMode('studio')"
-      />
+      @defer (when workspaceMode() === 'workbench'; prefetch on idle) {
+        <app-import-workbench
+          [targetFolder]="workbenchTargetDir()"
+          (goToStudio)="setWorkspaceMode('studio')"
+        />
+      } @placeholder {
+        <div class="text-xs text-zinc-400 p-4">Loading Import Workbench…</div>
+      }
     </main>
   } @else {
   <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 p-4 items-start">
@@ -395,17 +462,34 @@
               </div>
 
               <!-- Loop Section Toggle -->
-              <button
-                hlmBtn
-                type="button"
-                size="sm"
-                (click)="onToggleLoop()"
-                [class]="snap().loop_enabled
-                  ? 'bg-amber-500 text-zinc-950 hover:bg-amber-400 font-semibold'
-                  : 'border border-zinc-700 bg-zinc-950 text-zinc-200 hover:bg-zinc-800'"
-              >
-                {{ snap().loop_enabled ? 'LOOPING SECTION (L)' : 'Loop Section (L)' }}
-              </button>
+              <div class="inline-flex items-center gap-1">
+                <button
+                  hlmBtn
+                  type="button"
+                  size="sm"
+                  (click)="onToggleLoop()"
+                  [class]="snap().loop_enabled
+                    ? 'bg-amber-500 text-zinc-950 hover:bg-amber-400 font-semibold'
+                    : 'border border-zinc-700 bg-zinc-950 text-zinc-200 hover:bg-zinc-800'"
+                >
+                  {{ snap().loop_enabled ? 'LOOPING SECTION (L)' : 'Loop Section (L)' }}
+                </button>
+                @if (stage.midiAssignMode() && stage.bindingLabelFor({ type: 'LoopToggle' }); as loopBind) {
+                  <span hlmBadge variant="outline" class="border-amber-500/40 text-amber-300 text-[10px] gap-1">
+                    <span>{{ loopBind }}</span>
+                    <button
+                      type="button"
+                      data-testid="midi-unassign-looptoggle"
+                      aria-label="Unassign MIDI from Loop Section"
+                      title="Unassign MIDI"
+                      class="rounded px-1 text-rose-300 hover:bg-rose-500/20 hover:text-rose-200"
+                      (click)="unassignMidi({ type: 'LoopToggle' }, $event)"
+                    >
+                      ×
+                    </button>
+                  </span>
+                }
+              </div>
 
               <!-- Continue Track / Percussion Until Stopped Toggle -->
               <button
@@ -475,60 +559,76 @@
             @for (section of snap().sections; track section.id; let idx = $index) {
               @let isActive = snap().active_section_id === section.id;
               @let isArmed = snap().armed_section_id === section.id;
-              <button
-                type="button"
-                (click)="onSectionTap(section.id, section.name, idx)"
-                class="relative rounded-xl border p-4 text-left transition-all cursor-pointer select-none focus-visible:outline-2 focus-visible:outline-amber-400"
+              @let sectionBind = stage.midiAssignMode() ? stage.bindingLabelFor({ type: 'SectionByName', value: section.name }) : null;
+              <div
+                class="relative rounded-xl border transition-all"
                 [class]="isArmed
                   ? 'border-amber-400 bg-amber-500/20 ring-2 ring-amber-400/50 animate-pulse'
                   : isActive
                     ? 'border-emerald-500 bg-emerald-500/15 ring-1 ring-emerald-500/40'
                     : 'border-zinc-800 bg-zinc-950/80 hover:border-zinc-700 hover:bg-zinc-900'"
               >
-                <div class="flex items-center justify-between gap-2 mb-2">
-                  <div class="flex items-center gap-1.5">
-                    <span
-                      class="h-2 w-2 rounded-full"
-                      [class]="section.color === 'emerald'
-                        ? 'bg-emerald-400'
-                        : section.color === 'sky'
-                          ? 'bg-sky-400'
-                          : section.color === 'amber'
-                            ? 'bg-amber-400'
-                            : section.color === 'violet'
-                              ? 'bg-violet-400'
-                              : section.color === 'cyan'
-                                ? 'bg-cyan-400'
-                                : section.color === 'rose'
-                                  ? 'bg-rose-400'
-                                  : 'bg-zinc-400'"
-                    ></span>
-                    <span class="text-xs font-mono text-zinc-500">#{{ idx + 1 }}</span>
+                <button
+                  type="button"
+                  (click)="onSectionTap(section.id, section.name, idx)"
+                  class="w-full h-full rounded-xl p-4 text-left cursor-pointer select-none focus-visible:outline-2 focus-visible:outline-amber-400"
+                >
+                  <div class="flex items-center justify-between gap-2 mb-2">
+                    <div class="flex items-center gap-1.5">
+                      <span
+                        class="h-2 w-2 rounded-full"
+                        [class]="section.color === 'emerald'
+                          ? 'bg-emerald-400'
+                          : section.color === 'sky'
+                            ? 'bg-sky-400'
+                            : section.color === 'amber'
+                              ? 'bg-amber-400'
+                              : section.color === 'violet'
+                                ? 'bg-violet-400'
+                                : section.color === 'cyan'
+                                  ? 'bg-cyan-400'
+                                  : section.color === 'rose'
+                                    ? 'bg-rose-400'
+                                    : 'bg-zinc-400'"
+                      ></span>
+                      <span class="text-xs font-mono text-zinc-500">#{{ idx + 1 }}</span>
+                    </div>
+                    @if (isArmed) {
+                      <span hlmBadge class="bg-amber-500 text-zinc-950 text-[10px]">ARMED</span>
+                    } @else if (isActive && snap().is_playing) {
+                      <span hlmBadge class="bg-emerald-500 text-zinc-950 text-[10px]">PLAYING</span>
+                    } @else if (isActive) {
+                      <span hlmBadge variant="secondary" class="text-[10px]">READY</span>
+                    }
                   </div>
-                  @if (isArmed) {
-                    <span hlmBadge class="bg-amber-500 text-zinc-950 text-[10px]">ARMED</span>
-                  } @else if (isActive && snap().is_playing) {
-                    <span hlmBadge class="bg-emerald-500 text-zinc-950 text-[10px]">PLAYING</span>
-                  } @else if (isActive) {
-                    <span hlmBadge variant="secondary" class="text-[10px]">READY</span>
-                  }
-                </div>
 
-                <div class="text-lg font-semibold text-zinc-100">{{ section.name }}</div>
-                <div class="text-xs text-zinc-400 mt-0.5 font-mono tabular-nums">
-                  @if (section.start_sec != null && section.end_sec != null) {
-                    {{ formatTimePrecise(section.start_sec) }}–{{ formatTimePrecise(section.end_sec) }}
-                  } @else {
-                    Bars {{ section.start_bar }}–{{ section.end_bar - 1 }}
-                  }
-                </div>
-
-                @if (stage.midiAssignMode()) {
-                  <div class="mt-2 text-[10px] font-mono text-amber-300">
-                    {{ stage.bindingLabelFor({ type: 'SectionByName', value: section.name }) ?? 'Click to map MIDI' }}
+                  <div class="text-lg font-semibold text-zinc-100">{{ section.name }}</div>
+                  <div class="text-xs text-zinc-400 mt-0.5 font-mono tabular-nums">
+                    @if (section.start_sec != null && section.end_sec != null) {
+                      {{ formatTimePrecise(section.start_sec) }}–{{ formatTimePrecise(section.end_sec) }}
+                    } @else {
+                      Bars {{ section.start_bar }}–{{ section.end_bar - 1 }}
+                    }
                   </div>
+
+                  @if (stage.midiAssignMode()) {
+                    <div class="mt-2 pr-6 text-[10px] font-mono text-amber-300">
+                      {{ sectionBind ?? 'Click to map MIDI' }}
+                    </div>
+                  }
+                </button>
+                @if (sectionBind) {
+                  <button
+                    type="button"
+                    [attr.aria-label]="'Unassign MIDI from section ' + section.name"
+                    title="Unassign MIDI"
+                    class="absolute bottom-2.5 right-2.5 rounded border border-rose-500/40 bg-zinc-950/90 px-1.5 py-0.5 text-[10px] font-mono text-rose-300 hover:bg-rose-500/20 hover:text-rose-200"
+                    (click)="unassignMidi({ type: 'SectionByName', value: section.name }, $event)"
+                  >
+                    ×
+                  </button>
                 }
-              </button>
+              </div>
             }
           </div>
         </div>
@@ -571,6 +671,21 @@
             >
               {{ snap().pad_enabled ? 'PAD ON' : 'PAD OFF' }}
             </button>
+            @if (stage.midiAssignMode() && stage.bindingLabelFor({ type: 'TogglePad' }); as padBind) {
+              <span hlmBadge variant="outline" class="border-amber-500/40 text-amber-300 text-[10px] gap-1">
+                <span>{{ padBind }}</span>
+                <button
+                  type="button"
+                  data-testid="midi-unassign-togglepad"
+                  aria-label="Unassign MIDI from Ambient Pad Toggle"
+                  title="Unassign MIDI"
+                  class="rounded px-1 text-rose-300 hover:bg-rose-500/20 hover:text-rose-200"
+                  (click)="unassignMidi({ type: 'TogglePad' }, $event)"
+                >
+                  ×
+                </button>
+              </span>
+            }
             <button
               hlmBtn
               size="xs"
@@ -652,15 +767,29 @@
               <span class="text-zinc-300">Pad Level (FOH Music Bus)</span>
               <div class="flex items-center gap-2">
                 @if (stage.midiAssignMode()) {
-                  <button
-                    hlmBtn
-                    variant="outline"
-                    size="xs"
-                    type="button"
-                    (click)="mapMidiFader({ type: 'PadGain' }, 'Ambient Pad Volume', 'Continuous')"
-                  >
-                    {{ stage.bindingLabelFor({ type: 'PadGain' }) ?? 'Map Knob' }}
-                  </button>
+                  <div class="inline-flex items-center gap-0.5">
+                    <button
+                      hlmBtn
+                      variant="outline"
+                      size="xs"
+                      type="button"
+                      (click)="mapMidiFader({ type: 'PadGain' }, 'Ambient Pad Volume', 'Continuous')"
+                    >
+                      {{ stage.bindingLabelFor({ type: 'PadGain' }) ?? 'Map Knob' }}
+                    </button>
+                    @if (stage.bindingLabelFor({ type: 'PadGain' })) {
+                      <button
+                        type="button"
+                        data-testid="midi-unassign-padgain"
+                        aria-label="Unassign MIDI from Pad Level"
+                        title="Unassign MIDI"
+                        class="rounded border border-rose-500/40 bg-zinc-950 px-1.5 py-0.5 text-[10px] font-mono text-rose-300 hover:bg-rose-500/20"
+                        (click)="unassignMidi({ type: 'PadGain' }, $event)"
+                      >
+                        ×
+                      </button>
+                    }
+                  </div>
                 }
                 <span class="font-mono text-zinc-400 w-10 text-right">{{ snap().pad_gain * 100 | number: '1.0-0' }}%</span>
               </div>
@@ -680,15 +809,28 @@
                 <span class="text-zinc-400">Brightness</span>
                 <div class="flex items-center gap-1">
                   @if (stage.midiAssignMode()) {
-                    <button
-                      hlmBtn
-                      variant="outline"
-                      size="xs"
-                      type="button"
-                      (click)="mapMidiFader({ type: 'PadBrightness' }, 'Pad Brightness', 'Continuous')"
-                    >
-                      {{ stage.bindingLabelFor({ type: 'PadBrightness' }) ?? 'Map' }}
-                    </button>
+                    <div class="inline-flex items-center gap-0.5">
+                      <button
+                        hlmBtn
+                        variant="outline"
+                        size="xs"
+                        type="button"
+                        (click)="mapMidiFader({ type: 'PadBrightness' }, 'Pad Brightness', 'Continuous')"
+                      >
+                        {{ stage.bindingLabelFor({ type: 'PadBrightness' }) ?? 'Map' }}
+                      </button>
+                      @if (stage.bindingLabelFor({ type: 'PadBrightness' })) {
+                        <button
+                          type="button"
+                          aria-label="Unassign MIDI from Pad Brightness"
+                          title="Unassign MIDI"
+                          class="rounded border border-rose-500/40 bg-zinc-950 px-1 py-0.5 text-[10px] font-mono text-rose-300 hover:bg-rose-500/20"
+                          (click)="unassignMidi({ type: 'PadBrightness' }, $event)"
+                        >
+                          ×
+                        </button>
+                      }
+                    </div>
                   }
                   <span class="font-mono text-zinc-400">{{ snap().pad_brightness * 100 | number: '1.0-0' }}%</span>
                 </div>
@@ -707,15 +849,28 @@
                 <span class="text-zinc-400">Shimmer</span>
                 <div class="flex items-center gap-1">
                   @if (stage.midiAssignMode()) {
-                    <button
-                      hlmBtn
-                      variant="outline"
-                      size="xs"
-                      type="button"
-                      (click)="mapMidiFader({ type: 'PadShimmer' }, 'Pad Shimmer', 'Continuous')"
-                    >
-                      {{ stage.bindingLabelFor({ type: 'PadShimmer' }) ?? 'Map' }}
-                    </button>
+                    <div class="inline-flex items-center gap-0.5">
+                      <button
+                        hlmBtn
+                        variant="outline"
+                        size="xs"
+                        type="button"
+                        (click)="mapMidiFader({ type: 'PadShimmer' }, 'Pad Shimmer', 'Continuous')"
+                      >
+                        {{ stage.bindingLabelFor({ type: 'PadShimmer' }) ?? 'Map' }}
+                      </button>
+                      @if (stage.bindingLabelFor({ type: 'PadShimmer' })) {
+                        <button
+                          type="button"
+                          aria-label="Unassign MIDI from Pad Shimmer"
+                          title="Unassign MIDI"
+                          class="rounded border border-rose-500/40 bg-zinc-950 px-1 py-0.5 text-[10px] font-mono text-rose-300 hover:bg-rose-500/20"
+                          (click)="unassignMidi({ type: 'PadShimmer' }, $event)"
+                        >
+                          ×
+                        </button>
+                      }
+                    </div>
                   }
                   <span class="font-mono text-zinc-400">{{ snap().pad_shimmer * 100 | number: '1.0-0' }}%</span>
                 </div>
@@ -753,7 +908,21 @@
               Shakers, tambourine, claps, talking drum, clave &amp; bell
             </p>
           </div>
-          <div class="flex items-center gap-1 shrink-0">
+          <div class="flex flex-wrap items-center gap-1 shrink-0">
+            @if (stage.midiAssignMode() && stage.bindingLabelFor({ type: 'TogglePercussionMode' }); as percBind) {
+              <span hlmBadge variant="outline" class="border-amber-500/40 text-amber-300 text-[10px] gap-1">
+                <span>{{ percBind }}</span>
+                <button
+                  type="button"
+                  aria-label="Unassign MIDI from Percussion Mode"
+                  title="Unassign MIDI"
+                  class="rounded px-1 text-rose-300 hover:bg-rose-500/20 hover:text-rose-200"
+                  (click)="unassignMidi({ type: 'TogglePercussionMode' }, $event)"
+                >
+                  ×
+                </button>
+              </span>
+            }
             <button
               type="button"
               data-testid="perc-mode-off"
@@ -965,7 +1134,33 @@
             <div class="space-y-1">
               <div class="flex items-center justify-between text-[11px]">
                 <span class="text-zinc-400">Groove Gain</span>
-                <span class="font-mono text-zinc-300">{{ snap().percussion_gain * 100 | number: '1.0-0' }}%</span>
+                <div class="flex items-center gap-1.5">
+                  @if (stage.midiAssignMode()) {
+                    <div class="inline-flex items-center gap-0.5">
+                      <button
+                        hlmBtn
+                        variant="outline"
+                        size="xs"
+                        type="button"
+                        (click)="mapMidiFader({ type: 'PercussionGain' }, 'Percussion Groove Volume', 'Continuous')"
+                      >
+                        {{ stage.bindingLabelFor({ type: 'PercussionGain' }) ?? 'Map Knob' }}
+                      </button>
+                      @if (stage.bindingLabelFor({ type: 'PercussionGain' })) {
+                        <button
+                          type="button"
+                          aria-label="Unassign MIDI from Groove Gain"
+                          title="Unassign MIDI"
+                          class="rounded border border-rose-500/40 bg-zinc-950 px-1 py-0.5 text-[10px] font-mono text-rose-300 hover:bg-rose-500/20"
+                          (click)="unassignMidi({ type: 'PercussionGain' }, $event)"
+                        >
+                          ×
+                        </button>
+                      }
+                    </div>
+                  }
+                  <span class="font-mono text-zinc-300">{{ snap().percussion_gain * 100 | number: '1.0-0' }}%</span>
+                </div>
               </div>
               <hlm-slider
                 [min]="0"
@@ -1345,21 +1540,35 @@
         </div>
 
         <div hlmCardContent class="space-y-4">
-          <!-- Master -->
+          <!-- Master FOH -->
           <div class="space-y-1.5">
             <div class="flex items-center justify-between text-xs">
-              <span class="font-medium text-zinc-200">Master Soundtrack</span>
+              <span class="font-medium text-zinc-200">Master FOH Output</span>
               <div class="flex items-center gap-2">
                 @if (stage.midiAssignMode()) {
-                  <button
-                    hlmBtn
-                    variant="outline"
-                    size="xs"
-                    type="button"
-                    (click)="mapMidiFader({ type: 'MasterGain' }, 'Master Volume', 'Continuous')"
-                  >
-                    {{ stage.bindingLabelFor({ type: 'MasterGain' }) ?? 'Map Knob' }}
-                  </button>
+                  <div class="inline-flex items-center gap-0.5">
+                    <button
+                      hlmBtn
+                      variant="outline"
+                      size="xs"
+                      type="button"
+                      (click)="mapMidiFader({ type: 'MasterGain' }, 'Master Volume', 'Continuous')"
+                    >
+                      {{ stage.bindingLabelFor({ type: 'MasterGain' }) ?? 'Map Knob' }}
+                    </button>
+                    @if (stage.bindingLabelFor({ type: 'MasterGain' })) {
+                      <button
+                        type="button"
+                        data-testid="midi-unassign-mastergain"
+                        aria-label="Unassign MIDI from Master Volume"
+                        title="Unassign MIDI"
+                        class="rounded border border-rose-500/40 bg-zinc-950 px-1.5 py-0.5 text-[10px] font-mono text-rose-300 hover:bg-rose-500/20"
+                        (click)="unassignMidi({ type: 'MasterGain' }, $event)"
+                      >
+                        ×
+                      </button>
+                    }
+                  </div>
                 }
                 <span class="font-mono text-zinc-400 w-10 text-right">{{ snap().master_gain * 100 | number: '1.0-0' }}%</span>
               </div>
@@ -1373,6 +1582,52 @@
             />
           </div>
 
+          <!-- Backing Track (Independent from Pad/Percussion/Click) -->
+          <div class="space-y-1.5 pt-2 border-t border-zinc-800">
+            <div class="flex items-center justify-between text-xs">
+              <div class="flex items-center gap-2">
+                <span class="font-medium text-emerald-300">Backing Track</span>
+                <span hlmBadge variant="outline" class="text-[10px] border-emerald-500/40 text-emerald-300">STEMS</span>
+              </div>
+              <div class="flex items-center gap-2">
+                @if (stage.midiAssignMode()) {
+                  <div class="inline-flex items-center gap-0.5">
+                    <button
+                      hlmBtn
+                      variant="outline"
+                      size="xs"
+                      type="button"
+                      (click)="mapMidiFader({ type: 'BackingGain' }, 'Backing Track Volume', 'Continuous')"
+                    >
+                      {{ stage.bindingLabelFor({ type: 'BackingGain' }) ?? 'Map Knob' }}
+                    </button>
+                    @if (stage.bindingLabelFor({ type: 'BackingGain' })) {
+                      <button
+                        type="button"
+                        data-testid="midi-unassign-backinggain"
+                        aria-label="Unassign MIDI from Backing Track Volume"
+                        title="Unassign MIDI"
+                        class="rounded border border-rose-500/40 bg-zinc-950 px-1.5 py-0.5 text-[10px] font-mono text-rose-300 hover:bg-rose-500/20"
+                        (click)="unassignMidi({ type: 'BackingGain' }, $event)"
+                      >
+                        ×
+                      </button>
+                    }
+                  </div>
+                }
+                <span data-testid="mixer-backing-pct" class="font-mono text-emerald-300 w-10 text-right">{{ snap().backing_gain * 100 | number: '1.0-0' }}%</span>
+              </div>
+            </div>
+            <hlm-slider
+              data-testid="mixer-backing-slider"
+              [min]="0"
+              [max]="1.2"
+              [step]="0.01"
+              [value]="[snap().backing_gain]"
+              (valueChange)="onBackingSlider($event)"
+            />
+          </div>
+
           <!-- Click (IEM) -->
           <div class="space-y-1.5 pt-2 border-t border-zinc-800">
             <div class="flex items-center justify-between text-xs">
@@ -1382,15 +1637,29 @@
               </div>
               <div class="flex items-center gap-2">
                 @if (stage.midiAssignMode()) {
-                  <button
-                    hlmBtn
-                    variant="outline"
-                    size="xs"
-                    type="button"
-                    (click)="mapMidiFader({ type: 'ClickGain' }, 'Click Volume', 'Continuous')"
-                  >
-                    {{ stage.bindingLabelFor({ type: 'ClickGain' }) ?? 'Map Knob' }}
-                  </button>
+                  <div class="inline-flex items-center gap-0.5">
+                    <button
+                      hlmBtn
+                      variant="outline"
+                      size="xs"
+                      type="button"
+                      (click)="mapMidiFader({ type: 'ClickGain' }, 'Click Volume', 'Continuous')"
+                    >
+                      {{ stage.bindingLabelFor({ type: 'ClickGain' }) ?? 'Map Knob' }}
+                    </button>
+                    @if (stage.bindingLabelFor({ type: 'ClickGain' })) {
+                      <button
+                        type="button"
+                        data-testid="midi-unassign-clickgain"
+                        aria-label="Unassign MIDI from Click Volume"
+                        title="Unassign MIDI"
+                        class="rounded border border-rose-500/40 bg-zinc-950 px-1.5 py-0.5 text-[10px] font-mono text-rose-300 hover:bg-rose-500/20"
+                        (click)="unassignMidi({ type: 'ClickGain' }, $event)"
+                      >
+                        ×
+                      </button>
+                    }
+                  </div>
                 }
                 <button
                   hlmBtn
@@ -1401,9 +1670,11 @@
                 >
                   {{ snap().click_muted ? 'MUTED (M)' : 'Mute (M)' }}
                 </button>
+                <span data-testid="mixer-click-pct" class="font-mono text-amber-300 w-10 text-right">{{ snap().click_gain * 100 | number: '1.0-0' }}%</span>
               </div>
             </div>
             <hlm-slider
+              data-testid="mixer-click-slider"
               [min]="0"
               [max]="1.2"
               [step]="0.01"
@@ -1426,15 +1697,28 @@
                 </div>
                 <div class="flex items-center gap-2">
                   @if (stage.midiAssignMode()) {
-                    <button
-                      hlmBtn
-                      variant="outline"
-                      size="xs"
-                      type="button"
-                      (click)="mapMidiFader({ type: 'StemGain', value: stem.name }, 'Stem: ' + stem.name, 'Continuous')"
-                    >
-                      {{ stage.bindingLabelFor({ type: 'StemGain', value: stem.name }) ?? 'Map Knob' }}
-                    </button>
+                    <div class="inline-flex items-center gap-0.5">
+                      <button
+                        hlmBtn
+                        variant="outline"
+                        size="xs"
+                        type="button"
+                        (click)="mapMidiFader({ type: 'StemGain', value: stem.name }, 'Stem: ' + stem.name, 'Continuous')"
+                      >
+                        {{ stage.bindingLabelFor({ type: 'StemGain', value: stem.name }) ?? 'Map Knob' }}
+                      </button>
+                      @if (stage.bindingLabelFor({ type: 'StemGain', value: stem.name })) {
+                        <button
+                          type="button"
+                          [attr.aria-label]="'Unassign MIDI from Stem ' + stem.name"
+                          title="Unassign MIDI"
+                          class="rounded border border-rose-500/40 bg-zinc-950 px-1.5 py-0.5 text-[10px] font-mono text-rose-300 hover:bg-rose-500/20"
+                          (click)="unassignMidi({ type: 'StemGain', value: stem.name }, $event)"
+                        >
+                          ×
+                        </button>
+                      }
+                    </div>
                   }
                   <button
                     hlmBtn
@@ -1472,6 +1756,80 @@
 
     <!-- Top-Right Setlist Queue & Setup Racks (Setup racks hidden while Live Lock is active) -->
     <aside class="lg:col-span-5 flex flex-col gap-4" data-testid="live-stage-setlist-col">
+      <!-- Quick Live-Safe Click vs Backing Balance -->
+      <div hlmCard class="bg-zinc-900 border-zinc-800" data-testid="click-backing-balance-card">
+        <div class="px-4 py-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-medium text-emerald-300">Backing Track</span>
+              <div class="flex items-center gap-1.5">
+                @if (stage.midiAssignMode()) {
+                  <button
+                    hlmBtn
+                    variant="outline"
+                    size="xs"
+                    type="button"
+                    (click)="mapMidiFader({ type: 'BackingGain' }, 'Backing Track Volume', 'Continuous')"
+                  >
+                    {{ stage.bindingLabelFor({ type: 'BackingGain' }) ?? 'Map' }}
+                  </button>
+                }
+                <span data-testid="quick-backing-pct" class="font-mono text-emerald-200 tabular-nums">{{ snap().backing_gain * 100 | number: '1.0-0' }}%</span>
+              </div>
+            </div>
+            <hlm-slider
+              data-testid="quick-backing-slider"
+              aria-label="Backing Track Volume"
+              [min]="0"
+              [max]="1.2"
+              [step]="0.01"
+              [value]="[snap().backing_gain]"
+              (valueChange)="onBackingSlider($event)"
+            />
+          </div>
+
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-medium text-amber-300">Click Track (IEM)</span>
+              <div class="flex items-center gap-1.5">
+                @if (stage.midiAssignMode()) {
+                  <button
+                    hlmBtn
+                    variant="outline"
+                    size="xs"
+                    type="button"
+                    (click)="mapMidiFader({ type: 'ClickGain' }, 'Click Volume', 'Continuous')"
+                  >
+                    {{ stage.bindingLabelFor({ type: 'ClickGain' }) ?? 'Map' }}
+                  </button>
+                }
+                <button
+                  type="button"
+                  data-testid="quick-click-mute-btn"
+                  (click)="onClickMute(!snap().click_muted)"
+                  class="rounded border px-1.5 py-0.5 text-[10px] font-semibold cursor-pointer"
+                  [class]="snap().click_muted
+                    ? 'border-red-500/50 bg-red-950/60 text-red-200'
+                    : 'border-zinc-700 bg-zinc-950 text-zinc-300 hover:bg-zinc-800'"
+                >
+                  {{ snap().click_muted ? 'Muted' : 'Mute' }}
+                </button>
+                <span data-testid="quick-click-pct" class="font-mono text-amber-200 tabular-nums">{{ snap().click_gain * 100 | number: '1.0-0' }}%</span>
+              </div>
+            </div>
+            <hlm-slider
+              data-testid="quick-click-slider"
+              aria-label="Click Track Volume"
+              [min]="0"
+              [max]="1.2"
+              [step]="0.01"
+              [value]="[snap().click_gain]"
+              (valueChange)="onClickSlider($event)"
+            />
+          </div>
+        </div>
+      </div>
+
       <!-- Feature #1: Multi-Song Setlist Queue -->
       <div hlmCard class="bg-zinc-900 border-zinc-800">
         <div hlmCardHeader class="flex flex-row flex-wrap items-center justify-between gap-2 pb-3">
@@ -1487,26 +1845,52 @@
           </div>
 
           <div class="flex flex-wrap items-center gap-1.5">
-            <button
-              hlmBtn
-              variant="outline"
-              size="xs"
-              type="button"
-              [disabled]="snap().setlist_items.length < 2 && !stage.midiAssignMode()"
-              (click)="onPrevSong()"
-            >
-              Prev Song
-            </button>
-            <button
-              hlmBtn
-              variant="outline"
-              size="xs"
-              type="button"
-              [disabled]="snap().setlist_items.length < 2 && !stage.midiAssignMode()"
-              (click)="onNextSong()"
-            >
-              Next Song
-            </button>
+            <div class="inline-flex items-center gap-0.5">
+              <button
+                hlmBtn
+                variant="outline"
+                size="xs"
+                type="button"
+                [disabled]="snap().setlist_items.length < 2 && !stage.midiAssignMode()"
+                (click)="onPrevSong()"
+              >
+                Prev Song
+              </button>
+              @if (stage.midiAssignMode() && stage.bindingLabelFor({ type: 'PrevSong' }); as prevBind) {
+                <button
+                  type="button"
+                  [attr.aria-label]="'Unassign MIDI ' + prevBind + ' from Prev Song'"
+                  [title]="'Mapped: ' + prevBind + ' (click to unassign)'"
+                  class="rounded border border-rose-500/40 bg-zinc-950 px-1.5 py-0.5 text-[10px] font-mono text-rose-300 hover:bg-rose-500/20"
+                  (click)="unassignMidi({ type: 'PrevSong' }, $event)"
+                >
+                  {{ prevBind }} ×
+                </button>
+              }
+            </div>
+            <div class="inline-flex items-center gap-0.5">
+              <button
+                hlmBtn
+                variant="outline"
+                size="xs"
+                type="button"
+                [disabled]="snap().setlist_items.length < 2 && !stage.midiAssignMode()"
+                (click)="onNextSong()"
+              >
+                Next Song
+              </button>
+              @if (stage.midiAssignMode() && stage.bindingLabelFor({ type: 'NextSong' }); as nextBind) {
+                <button
+                  type="button"
+                  [attr.aria-label]="'Unassign MIDI ' + nextBind + ' from Next Song'"
+                  [title]="'Mapped: ' + nextBind + ' (click to unassign)'"
+                  class="rounded border border-rose-500/40 bg-zinc-950 px-1.5 py-0.5 text-[10px] font-mono text-rose-300 hover:bg-rose-500/20"
+                  (click)="unassignMidi({ type: 'NextSong' }, $event)"
+                >
+                  {{ nextBind }} ×
+                </button>
+              }
+            </div>
             <button
               hlmBtn
               variant="secondary"
@@ -1540,6 +1924,17 @@
             </button>
             <button
               hlmBtn
+              variant="outline"
+              size="xs"
+              type="button"
+              data-testid="live-new-setlist-btn"
+              [disabled]="liveLock()"
+              (click)="toggleNewSetlistDrawer()"
+            >
+              + New Setlist
+            </button>
+            <button
+              hlmBtn
               variant="ghost"
               size="xs"
               type="button"
@@ -1562,6 +1957,90 @@
         </div>
 
         <div hlmCardContent class="space-y-2.5">
+          <!-- Create New Setlist Drawer (Save current & start fresh) -->
+          @if (newSetlistDrawerOpen() && !liveLock()) {
+            <div
+              data-testid="live-new-setlist-drawer"
+              class="rounded-lg border border-emerald-500/40 bg-emerald-950/20 p-3 space-y-2.5 text-xs"
+            >
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <div class="font-semibold text-emerald-200">Create New Setlist</div>
+                  <div class="text-[11px] text-zinc-400">
+                    @if (hasCurrentSetlistContent()) {
+                      Optionally save "{{ snap().setlist_name }}" before clearing the stage queue.
+                    } @else {
+                      Start a fresh named setlist queue.
+                    }
+                  </div>
+                </div>
+                <button
+                  hlmBtn
+                  variant="ghost"
+                  size="xs"
+                  type="button"
+                  (click)="newSetlistDrawerOpen.set(false)"
+                >
+                  Cancel
+                </button>
+              </div>
+
+              <div class="flex flex-wrap items-center gap-2">
+                <input
+                  type="text"
+                  data-testid="live-new-setlist-name"
+                  placeholder="New setlist name (default: New Sunday Set)..."
+                  class="flex-1 min-w-[200px] rounded border border-zinc-700 bg-zinc-950 px-2.5 py-1.5 text-xs text-zinc-100 focus:outline-none focus:ring-1 focus:ring-emerald-500/60"
+                  [ngModel]="newSetlistName()"
+                  (ngModelChange)="newSetlistName.set($event)"
+                  (keydown.enter)="onCreateNewSetlist(false)"
+                />
+                <button
+                  hlmBtn
+                  size="xs"
+                  type="button"
+                  data-testid="live-new-setlist-confirm-btn"
+                  class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold"
+                  [disabled]="newSetlistBusy()"
+                  (click)="onCreateNewSetlist(false)"
+                >
+                  {{ newSetlistSaveCurrent() && hasCurrentSetlistContent() ? 'Save & Start Fresh' : 'Start Fresh' }}
+                </button>
+                @if (newSetlistSaveCurrent() && hasCurrentSetlistContent()) {
+                  <button
+                    hlmBtn
+                    variant="outline"
+                    size="xs"
+                    type="button"
+                    data-testid="live-new-setlist-save-as-btn"
+                    [disabled]="newSetlistBusy()"
+                    (click)="onCreateNewSetlist(true)"
+                  >
+                    Save As...
+                  </button>
+                }
+              </div>
+
+              @if (hasCurrentSetlistContent()) {
+                <label class="inline-flex items-center gap-2 text-[11px] text-zinc-300 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    data-testid="live-new-setlist-save-current"
+                    class="rounded border-zinc-600 bg-zinc-950 accent-emerald-500"
+                    [ngModel]="newSetlistSaveCurrent()"
+                    (ngModelChange)="newSetlistSaveCurrent.set($event)"
+                  />
+                  <span>
+                    Save "{{ snap().setlist_name }}" first
+                    <span class="text-zinc-400">
+                      ({{ stage.activeSetlistPath() ? 'updates active file' : 'saves to Managed Setlists' }})
+                    </span>
+                  </span>
+                </label>
+              }
+            </div>
+          }
+
           <!-- Service Section Creator & Selection Quick Bar -->
           @if (!liveLock()) {
             <div class="rounded-lg border border-zinc-800/90 bg-zinc-950/70 px-2.5 py-2 flex flex-wrap items-center justify-between gap-2 text-xs">
@@ -2584,13 +3063,12 @@
           <div>
             <label class="block text-zinc-400 mb-1">BPM</label>
             <input
-              type="number"
-              step="0.5"
-              min="20"
-              max="280"
+              type="text"
+              inputmode="decimal"
               class="w-full rounded border border-zinc-700 bg-zinc-950 px-2.5 py-1.5 font-mono text-zinc-100"
-              [ngModel]="ed.bpm"
-              (ngModelChange)="updateEditorField('bpm', $event)"
+              [value]="ed.bpm"
+              (change)="updateEditorField('bpm', $any($event.target).value)"
+              (blur)="updateEditorField('bpm', $any($event.target).value)"
             />
           </div>
           <div>
@@ -2770,6 +3248,21 @@
             >
               {{ snap().pad_enabled ? 'PAD ON' : 'PAD OFF' }}
             </button>
+            @if (stage.midiAssignMode() && stage.bindingLabelFor({ type: 'TogglePad' }); as padBind) {
+              <span hlmBadge variant="outline" class="border-amber-500/40 text-amber-300 text-[10px] gap-1">
+                <span>{{ padBind }}</span>
+                <button
+                  type="button"
+                  data-testid="midi-unassign-togglepad"
+                  aria-label="Unassign MIDI from Ambient Pad Toggle"
+                  title="Unassign MIDI"
+                  class="rounded px-1 text-rose-300 hover:bg-rose-500/20 hover:text-rose-200"
+                  (click)="unassignMidi({ type: 'TogglePad' }, $event)"
+                >
+                  ×
+                </button>
+              </span>
+            }
             <button hlmBtn variant="ghost" size="sm" type="button" (click)="closePadStudio()">Done</button>
           </div>
         </div>

@@ -297,6 +297,7 @@ fn main() -> ExitCode {
                 let plan = plan_sunday_setlist(
                     &SetlistPlanRequest {
                         setlist_name: name,
+                        sections: Vec::new(),
                         songs,
                         auto_approve: has_flag(&args, "--auto-approve"),
                         search_limit: 5,
@@ -356,7 +357,9 @@ fn main() -> ExitCode {
                 });
                 let req = SetlistBuildRequest {
                     setlist_name: name,
+                    sections: Vec::new(),
                     songs,
+                    mixer: None,
                     auto_approve: has_flag(&args, "--auto-approve"),
                     output_path: flag_value(&args, "--output"),
                     separation_engine: sep_engine,

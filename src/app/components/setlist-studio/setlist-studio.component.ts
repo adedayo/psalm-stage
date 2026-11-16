@@ -148,6 +148,10 @@ export class SetlistStudioComponent {
   readonly newSectionKind = signal<ServiceSectionKind>('Praise');
   readonly newSectionName = signal<string>('');
   readonly addStandaloneOpen = signal<boolean>(false);
+  readonly newSetlistOpen = signal<boolean>(false);
+  readonly newSetlistName = signal<string>('');
+  readonly newSetlistSaveCurrent = signal<boolean>(true);
+  readonly newSetlistBusy = signal<boolean>(false);
   readonly newStandaloneKind = signal<SetlistSlotKind>('PadOnly');
   readonly newStandaloneTitle = signal<string>('Sermon Underscore');
   readonly newStandaloneKey = signal<string>('D');
@@ -807,7 +811,44 @@ export class SetlistStudioComponent {
 
   async clearSetlist(): Promise<void> {
     await this.stage.sendCommand({ type: 'ClearSetlist' });
+    this.stage.activeSetlistPath.set(null);
     this.selectedStudioSlot.set(null);
+    this.selectedStudioSlots.set([]);
+  }
+
+  hasCurrentSetlistContent(): boolean {
+    const cur = this.snap();
+    return cur.setlist_items.length > 0 || cur.setlist_sections.length > 0;
+  }
+
+  toggleNewSetlist(): void {
+    const next = !this.newSetlistOpen();
+    this.newSetlistOpen.set(next);
+    if (next) {
+      this.newSetlistSaveCurrent.set(true);
+      this.newSetlistName.set('');
+    }
+  }
+
+  async createNewSetlist(saveAsCustomPath = false): Promise<void> {
+    if (this.newSetlistBusy()) return;
+    this.newSetlistBusy.set(true);
+    try {
+      const ok = await this.stage.createNewSetlist({
+        name: this.newSetlistName(),
+        saveCurrent: this.newSetlistSaveCurrent(),
+        saveAsCustomPath,
+      });
+      if (ok) {
+        this.selectedStudioSlot.set(null);
+        this.selectedStudioSlots.set([]);
+        this.selectionAnchorSlot.set(null);
+        this.newSetlistName.set('');
+        this.newSetlistOpen.set(false);
+      }
+    } finally {
+      this.newSetlistBusy.set(false);
+    }
   }
 
   async linkNewFolderViaPicker(): Promise<void> {

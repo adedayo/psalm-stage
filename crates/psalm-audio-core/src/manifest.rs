@@ -300,6 +300,8 @@ pub struct StemMixOverride {
 pub struct SetlistMixerConfig {
     #[serde(default = "default_mixer_master_gain")]
     pub master_gain: f32,
+    #[serde(default = "default_mixer_master_gain")]
+    pub backing_gain: f32,
     #[serde(default = "default_mixer_click_gain")]
     pub click_gain: f32,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -310,6 +312,7 @@ impl Default for SetlistMixerConfig {
     fn default() -> Self {
         Self {
             master_gain: default_mixer_master_gain(),
+            backing_gain: default_mixer_master_gain(),
             click_gain: default_mixer_click_gain(),
             click_muted: None,
         }
@@ -495,10 +498,13 @@ impl SetlistManifest {
             }
         }
         if let Some(ref mixer) = self.mixer {
-            if !(0.0..=1.5).contains(&mixer.master_gain) || !(0.0..=1.5).contains(&mixer.click_gain)
+            if !(0.0..=1.5).contains(&mixer.master_gain)
+                || !(0.0..=1.5).contains(&mixer.backing_gain)
+                || !(0.0..=1.5).contains(&mixer.click_gain)
             {
                 return Err(AudioCoreError::Manifest(
-                    "Setlist mixer master_gain/click_gain out of range 0.0..=1.5".into(),
+                    "Setlist mixer master_gain/backing_gain/click_gain out of range 0.0..=1.5"
+                        .into(),
                 ));
             }
         }

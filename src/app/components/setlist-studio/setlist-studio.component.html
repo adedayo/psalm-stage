@@ -353,6 +353,10 @@
         </div>
 
         <div class="flex flex-wrap items-center gap-1.5">
+          <button hlmBtn variant="outline" size="xs" type="button" data-testid="studio-new-setlist-btn"
+            (click)="toggleNewSetlist()">
+            + New Setlist
+          </button>
           <button hlmBtn variant="outline" size="xs" type="button" (click)="addStandaloneOpen.set(!addStandaloneOpen())">
             + Pad / Groove Slot
           </button>
@@ -369,6 +373,51 @@
           </button>
         </div>
       </div>
+
+      @if (newSetlistOpen()) {
+      <div data-testid="studio-new-setlist-drawer"
+        class="px-3.5 py-2.5 border-b border-emerald-500/40 bg-emerald-950/20 space-y-2 text-xs">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <span class="font-semibold text-emerald-200">
+            Create New Setlist
+          </span>
+          <button hlmBtn variant="ghost" size="xs" type="button" (click)="newSetlistOpen.set(false)">
+            Cancel
+          </button>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <input type="text" data-testid="studio-new-setlist-name"
+            placeholder="New setlist name (default: New Sunday Set)..."
+            class="flex-1 min-w-[180px] rounded border border-zinc-700 bg-zinc-950 px-2.5 py-1 text-zinc-100 focus:outline-none focus:ring-1 focus:ring-emerald-500/60"
+            [ngModel]="newSetlistName()" (ngModelChange)="newSetlistName.set($event)"
+            (keydown.enter)="createNewSetlist(false)" />
+          <button hlmBtn size="xs" type="button" data-testid="studio-new-setlist-confirm-btn"
+            class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold"
+            [disabled]="newSetlistBusy()" (click)="createNewSetlist(false)">
+            {{ newSetlistSaveCurrent() && hasCurrentSetlistContent() ? 'Save & Start Fresh' : 'Start Fresh' }}
+          </button>
+          @if (newSetlistSaveCurrent() && hasCurrentSetlistContent()) {
+          <button hlmBtn variant="outline" size="xs" type="button" [disabled]="newSetlistBusy()"
+            (click)="createNewSetlist(true)">
+            Save As...
+          </button>
+          }
+        </div>
+        @if (hasCurrentSetlistContent()) {
+        <label class="inline-flex items-center gap-2 text-[11px] text-zinc-300 cursor-pointer select-none">
+          <input type="checkbox" data-testid="studio-new-setlist-save-current"
+            class="rounded border-zinc-600 bg-zinc-950 accent-emerald-500"
+            [ngModel]="newSetlistSaveCurrent()" (ngModelChange)="newSetlistSaveCurrent.set($event)" />
+          <span>
+            Save "{{ snap().setlist_name }}" first
+            <span class="text-zinc-400">
+              ({{ stage.activeSetlistPath() ? 'updates active file' : 'saves to Managed Setlists' }})
+            </span>
+          </span>
+        </label>
+        }
+      </div>
+      }
 
       <!-- Service Section Manager & Multi-Select Bar -->
       <div class="px-3.5 py-2 border-b border-zinc-800/80 bg-zinc-950/60 flex flex-wrap items-center justify-between gap-2 text-xs">
@@ -652,10 +701,14 @@
             <div
               class="rounded-lg border border-zinc-800 bg-zinc-900/70 px-2 py-1.5 flex items-center justify-between gap-1">
               <span class="text-[10px] uppercase tracking-wider text-zinc-500">BPM</span>
-              <input type="number" min="30" max="260" step="0.5"
+              <input type="text" inputmode="decimal"
                 data-testid="studio-slot-bpm"
+                aria-label="Slot BPM Override"
                 class="w-16 rounded border border-zinc-700 bg-zinc-950 px-1.5 py-0.5 text-right font-mono text-zinc-100"
-                [ngModel]="item.effective_bpm" (ngModelChange)="setSlotBpm(item, $event)" />
+                [value]="item.effective_bpm"
+                (change)="setSlotBpm(item, $any($event.target).value)"
+                (blur)="setSlotBpm(item, $any($event.target).value)"
+                (keydown.enter)="!$any($event).isComposing && $any($event.target).blur()" />
             </div>
 
             <!-- Per-Song Click Mode -->

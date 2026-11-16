@@ -173,6 +173,7 @@ export function serializeSetlistManifest(cur: EngineSnapshot): SetlistManifest {
     sections: cur.setlist_sections.map((s) => ({ ...s })),
     mixer: {
       master_gain: cur.master_gain,
+      backing_gain: cur.backing_gain,
       click_gain: cur.click_gain,
       click_muted: cur.click_muted && cur.click_mode !== 'Off' ? true : false,
     },

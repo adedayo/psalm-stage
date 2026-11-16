@@ -13,6 +13,7 @@ import {
   type EngineSnapshot,
   type ExportLoopBundleRequest,
   type ExportLoopBundleResult,
+  type GeneratedSectionCues,
   type GrooveIntensity,
   type ImportJobRequest,
   type ImportProvenance,
@@ -31,6 +32,9 @@ import {
   type PercussionMode,
   type PercussionStyle,
   type RawMidiEvent,
+  type SectionCueOptions,
+  type SectionCuePlacement,
+  type SectionCueTimingOverride,
   type SetlistManifest,
   type SetlistSection,
   type SetlistSummary,
@@ -41,6 +45,7 @@ import {
   type WorkbenchJobProgress,
   type YouTubeMetadata,
 } from '../models/engine.models';
+import { serializeSetlistManifest } from '../models/setlist.helpers';
 
 export function canonicalizeSourceRef(kind: 'youtube' | 'local_file', raw: string): string {
   const trimmed = raw.trim();
@@ -336,6 +341,7 @@ const DEMO_FALLBACK_SNAPSHOT: EngineSnapshot = {
   base_bpm: 72,
   current_bpm: 72,
   master_gain: 1.0,
+  backing_gain: 1.0,
   click_gain: 0.85,
   click_muted: false,
   click_mode: 'AlwaysOn',
@@ -516,6 +522,7 @@ export class PsalmStageService implements OnDestroy {
   );
   readonly libraryScanning = signal<boolean>(false);
   readonly managedSetlists = signal<SetlistSummary[]>([]);
+  readonly activeSetlistPath = signal<string | null>(null);
   readonly aiHarnessInfo = signal<AiHarnessInfo | null>(
     typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
       ? null
@@ -940,10 +947,138 @@ export class PsalmStageService implements OnDestroy {
     }
   }
 
+  async generateSectionCues(
+    dir: string,
+    timingOverride: SectionCueTimingOverride | null,
+    options: Partial<SectionCueOptions> = {},
+    reloadIfActive = true,
+    currentManifest?: SongManifest | null,
+  ): Promise<GeneratedSectionCues | null> {
+    const resolvedOpts: SectionCueOptions = {
+      lead_in_beats: options.lead_in_beats ?? 2,
+      include_chime: options.include_chime ?? true,
+      sample_rate: options.sample_rate ?? null,
+      use_os_tts: options.use_os_tts ?? null,
+    };
+    if (!this.isTauriRuntime()) {
+      const bpm = Math.max(30, Math.min(260, timingOverride?.bpm ?? currentManifest?.bpm ?? 120));
+      const bpb = Math.max(
+        1,
+        Math.min(12, timingOverride?.beats_per_bar ?? currentManifest?.time_signature?.[0] ?? 4),
+      );
+      const firstDownbeat =
+        timingOverride?.first_downbeat_sec ?? currentManifest?.first_downbeat_sec ?? 0;
+      const sections = timingOverride?.sections ?? currentManifest?.sections ?? [];
+      const beatSec = 60 / bpm;
+      const leadInSec = Math.max(0, Math.min(8, resolvedOpts.lead_in_beats)) * beatSec;
+      const secPerBar = beatSec * bpb;
+      const placements: SectionCuePlacement[] = sections.map((sec) => {
+        const secStart =
+          sec.start_sec != null
+            ? Math.max(0, sec.start_sec)
+            : Math.max(0, firstDownbeat + (sec.start_bar - 1) * secPerBar);
+        return {
+          section_id: sec.id,
+          section_name: sec.name,
+          phrase: sec.name.trim() || 'Section',
+          section_start_sec: secStart,
+          cue_start_sec: Math.max(0, secStart - leadInSec),
+        };
+      });
+      const existingCues = currentManifest?.stems?.['cues'];
+      const existingFile =
+        typeof existingCues === 'string' ? existingCues : existingCues?.file;
+      const stemKey =
+        existingFile && existingFile !== 'section-cues.wav' ? 'section_cues' : 'cues';
+      const baseManifest: SongManifest = currentManifest
+        ? {
+            ...currentManifest,
+            bpm,
+            first_downbeat_sec: firstDownbeat,
+            time_signature: [bpb, currentManifest.time_signature?.[1] ?? 4],
+            sections: sections.map((s) => ({ ...s })),
+            stems: {
+              ...currentManifest.stems,
+              [stemKey]: {
+                file: 'section-cues.wav',
+                pitched: false,
+                is_cues: true,
+                default_gain: 0.9,
+                muted: false,
+              },
+            },
+          }
+        : {
+            id: 'preview-song',
+            title: 'Preview Song',
+            artist: '',
+            bpm,
+            time_signature: [bpb, 4],
+            first_downbeat_sec: firstDownbeat,
+            original_key: 'G',
+            click_mode: 'AlwaysOn',
+            sections: sections.map((s) => ({ ...s })),
+            stems: {
+              [stemKey]: {
+                file: 'section-cues.wav',
+                pitched: false,
+                is_cues: true,
+                default_gain: 0.9,
+                muted: false,
+              },
+            },
+          };
+      if (reloadIfActive) {
+        this.snapshot.update((cur) => {
+          const without = cur.stems.filter((s) => s.name !== stemKey);
+          return {
+            ...cur,
+            stems: [
+              ...without,
+              { name: stemKey, pitched: false, is_cues: true, gain: 0.9, muted: false },
+            ],
+          };
+        });
+        persistPreviewSnapshot(this.snapshot());
+      }
+      const lastCue = placements[placements.length - 1]?.cue_start_sec ?? 0;
+      return {
+        stem_key: stemKey,
+        file_name: 'section-cues.wav',
+        used_os_tts: false,
+        placements,
+        duration_sec: lastCue + 1.0,
+        manifest: baseManifest,
+      };
+    }
+
+    try {
+      const res = await invoke<GeneratedSectionCues>('generate_section_cues', {
+        dir,
+        timingOverride,
+        options: resolvedOpts,
+        reloadIfActive,
+      });
+      if (reloadIfActive) {
+        const snap = await invoke<EngineSnapshot>('get_snapshot');
+        this.snapshot.set(snap);
+      }
+      return res;
+    } catch (err) {
+      this.statusMessage.set(`Generate cues error: ${String(err)}`);
+      return null;
+    }
+  }
+
   async saveSetlistToDisk(path: string, setlist: SetlistManifest): Promise<boolean> {
-    if (!this.isTauriRuntime()) return true;
+    if (!this.isTauriRuntime()) {
+      this.activeSetlistPath.set(path);
+      this.statusMessage.set(`Saved setlist "${setlist.name}"`);
+      return true;
+    }
     try {
       await invoke('save_setlist_file', { path, setlist });
+      this.activeSetlistPath.set(path);
       this.statusMessage.set(`Saved setlist "${setlist.name}"`);
       void this.refreshManagedSetlists();
       return true;
@@ -953,10 +1088,110 @@ export class PsalmStageService implements OnDestroy {
     }
   }
 
+  async saveManagedSetlist(
+    setlist: SetlistManifest,
+    targetPath?: string | null,
+  ): Promise<string | null> {
+    if (!this.isTauriRuntime()) {
+      const root = this.libraryConfig().setlists_root || '~/Music/PsalmStage/Setlists';
+      const slug =
+        setlist.name
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '') || 'sunday-set';
+      const resolvedPath =
+        targetPath && targetPath.trim().length > 0 ? targetPath : `${root}/${slug}.json`;
+      const summary: SetlistSummary = {
+        id: setlist.id || slug,
+        name: setlist.name,
+        path: resolvedPath,
+        song_count: setlist.items.length,
+        total_estimated_sec: setlist.items.length * 240,
+        modified_ms: Date.now(),
+        song_titles: setlist.items.map((it) => it.title || it.song_id).filter(Boolean),
+      };
+      this.managedSetlists.update((list) => [
+        summary,
+        ...list.filter((s) => s.path !== resolvedPath),
+      ]);
+      this.activeSetlistPath.set(resolvedPath);
+      this.statusMessage.set(`Saved setlist "${setlist.name}"`);
+      return resolvedPath;
+    }
+    try {
+      const savedPath = await invoke<string>('save_managed_setlist', {
+        setlist,
+        path: targetPath ?? null,
+      });
+      this.activeSetlistPath.set(savedPath);
+      this.statusMessage.set(`Saved setlist "${setlist.name}"`);
+      await this.refreshManagedSetlists();
+      return savedPath;
+    } catch (err) {
+      this.statusMessage.set(`Save setlist error: ${String(err)}`);
+      return null;
+    }
+  }
+
+  async createNewSetlist(options: {
+    name: string;
+    saveCurrent: boolean;
+    saveAsCustomPath?: boolean;
+  }): Promise<boolean> {
+    if (this.liveLockActive()) {
+      this.statusMessage.set('Unlock Live Lock before creating a new setlist.');
+      return false;
+    }
+    const cur = this.snapshot();
+    const hasContent = cur.setlist_items.length > 0 || cur.setlist_sections.length > 0;
+    let savedLocation: string | null = null;
+
+    if (options.saveCurrent && hasContent) {
+      const currentManifest = serializeSetlistManifest(cur);
+      if (options.saveAsCustomPath) {
+        const picked = await this.pickSaveSetlistFile(`${currentManifest.id}.json`);
+        if (!picked) {
+          return false;
+        }
+        const ok = await this.saveSetlistToDisk(picked, currentManifest);
+        if (!ok) return false;
+        savedLocation = picked;
+      } else {
+        const path = await this.saveManagedSetlist(currentManifest, this.activeSetlistPath());
+        if (!path) return false;
+        savedLocation = path;
+      }
+    }
+
+    const nextName = options.name.trim() || 'New Sunday Set';
+    const nextId =
+      nextName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '') || 'sunday-set';
+    const freshManifest: SetlistManifest = {
+      id: nextId,
+      name: nextName,
+      sections: [],
+      items: [],
+    };
+    await this.sendCommand({ type: 'LoadSetlist', payload: freshManifest });
+    this.activeSetlistPath.set(null);
+    this.dismissExternalSyncNotice();
+    this.statusMessage.set(
+      savedLocation
+        ? `Saved "${cur.setlist_name}" and started fresh setlist "${nextName}".`
+        : `Started fresh setlist "${nextName}".`,
+    );
+    return true;
+  }
+
   async loadSetlistFromDisk(path: string): Promise<SetlistManifest | null> {
     if (!this.isTauriRuntime()) return null;
     try {
-      return await invoke<SetlistManifest>('load_setlist_file', { path });
+      const loaded = await invoke<SetlistManifest>('load_setlist_file', { path });
+      this.activeSetlistPath.set(path);
+      return loaded;
     } catch (err) {
       this.statusMessage.set(`Load setlist error: ${String(err)}`);
       return null;
@@ -1729,6 +1964,22 @@ export class PsalmStageService implements OnDestroy {
     this.midiBindings.set(updated);
   }
 
+  bindingsFor(target: MidiTarget): MidiBinding[] {
+    const key = JSON.stringify(target);
+    return this.midiBindings().filter((b) => JSON.stringify(b.target) === key);
+  }
+
+  async unassignMidiTarget(target: MidiTarget): Promise<void> {
+    const key = JSON.stringify(target);
+    const matches = this.midiBindings().filter((b) => JSON.stringify(b.target) === key);
+    if (this.listeningTarget() && JSON.stringify(this.listeningTarget()!.target) === key) {
+      this.listeningTarget.set(null);
+    }
+    for (const binding of matches) {
+      await this.deleteMidiBinding(binding.id);
+    }
+  }
+
   bindingLabelFor(target: MidiTarget): string | null {
     const match = this.midiBindings().find(
       (b) => JSON.stringify(b.target) === JSON.stringify(target),
@@ -1736,7 +1987,13 @@ export class PsalmStageService implements OnDestroy {
     if (!match) return null;
     const ch = match.channel ? `Ch${match.channel}` : 'Any';
     const kind =
-      match.kind === 'Note' ? `Note ${match.number}` : match.kind === 'ControlChange' ? `CC ${match.number}` : `PC ${match.number}`;
+      match.kind === 'Note'
+        ? `Note ${match.number}`
+        : match.kind === 'ControlChange'
+          ? `CC ${match.number}`
+          : match.kind === 'PitchBend'
+            ? 'PitchBend'
+            : `PC ${match.number}`;
     return `${ch} • ${kind}`;
   }
 
@@ -1918,6 +2175,8 @@ export class PsalmStageService implements OnDestroy {
         }
         case 'SetMasterGain':
           return { ...cur, master_gain: command.payload };
+        case 'SetBackingGain':
+          return { ...cur, backing_gain: command.payload };
         case 'SetClickGain':
           return { ...cur, click_gain: command.payload };
         case 'SetClickMuted':
@@ -2588,6 +2847,10 @@ export class PsalmStageService implements OnDestroy {
             percussion_audition_bpm: Math.max(40, Math.min(240, firstBpm)),
             click_mode: firstClickMode,
             master_gain: mixer ? Math.max(0, Math.min(1.5, mixer.master_gain)) : cur.master_gain,
+            backing_gain:
+              mixer?.backing_gain != null
+                ? Math.max(0, Math.min(1.5, mixer.backing_gain))
+                : cur.backing_gain,
             click_gain: mixer ? Math.max(0, Math.min(1.5, mixer.click_gain)) : cur.click_gain,
             click_muted:
               items.length > 0

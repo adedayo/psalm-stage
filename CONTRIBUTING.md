@@ -53,9 +53,16 @@ npx ng test --watch=false
 npm run build
 ```
 
-If you modified files under `website/`, also verify the site build:
+If you modified files under `website/`, `src/`, or `crates/psalm-stage-cli/`, also update docs/screenshots and verify:
 
 ```bash
+# Refresh screenshots (required for major UI changes; add new views to scripts/capture-docs-screenshots.mjs)
+npm run build
+node scripts/capture-docs-screenshots.mjs
+
+# Sync & verify auto-generated CLI/MCP/version docs and build the website
+node scripts/sync-docs.mjs
+node scripts/sync-docs.mjs --check
 cd website && npm run build
 ```
 

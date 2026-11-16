@@ -40,6 +40,7 @@ import {
   type BarQuickPreset,
 } from '../../models/loop-pattern.helpers';
 import { PsalmStageService } from '../../services/psalm-stage.service';
+import { RotaryDialComponent } from '../rotary-dial/rotary-dial.component';
 
 export type BarViewScope = 'all' | 0 | 1 | 2 | 3;
 
@@ -54,6 +55,7 @@ export type BarViewScope = 'all' | 0 | 1 | 2 | 3;
     HlmCardImports,
     HlmSliderImports,
     HlmSwitchImports,
+    RotaryDialComponent,
   ],
   templateUrl: './loop-studio.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

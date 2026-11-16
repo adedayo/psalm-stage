@@ -41,9 +41,10 @@ use tauri::{AppHandle, Emitter, Manager, RunEvent, State};
 use crate::midi_manager::MidiManager;
 use crate::workbench::{
     analyze_waveform_with_timing, build_ai_harness_info, compute_workspace_watch_fingerprint,
+    core_save_managed_setlist, generate_section_cues_for_song,
     install_cli_symlink as install_bundled_cli_symlink, start_tauri_import_job, AiHarnessInfo,
-    ImportJobRequest, ToolchainStatus, WorkbenchConfig, WorkbenchManager, YouTubeMetadata,
-    YouTubeSearchCandidate,
+    GeneratedSectionCues, ImportJobRequest, SectionCueOptions, SectionCueTimingOverride,
+    ToolchainStatus, WorkbenchConfig, WorkbenchManager, YouTubeMetadata, YouTubeSearchCandidate,
 };
 
 pub struct AppState {
@@ -301,12 +302,54 @@ async fn save_song_manifest(
 }
 
 #[tauri::command]
+async fn generate_section_cues(
+    dir: String,
+    timing_override: Option<SectionCueTimingOverride>,
+    options: Option<SectionCueOptions>,
+    reload_if_active: bool,
+    state: State<'_, AppState>,
+) -> Result<GeneratedSectionCues, String> {
+    let engine = Arc::clone(&state.engine);
+    tauri::async_runtime::spawn_blocking(move || {
+        let opts = options.unwrap_or_default();
+        let res = generate_section_cues_for_song(Path::new(&dir), timing_override, &opts)?;
+        if reload_if_active {
+            let _ = engine.send(EngineCommand::LoadSongDir(dir));
+        }
+        Ok(res)
+    })
+    .await
+    .map_err(|e| format!("Generate section cues task failed: {e}"))?
+}
+
+#[tauri::command]
 async fn save_setlist_file(path: String, setlist: SetlistManifest) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
         save_setlist_manifest(Path::new(&path), &setlist).map_err(|e| e.to_string())
     })
     .await
     .map_err(|e| format!("Save setlist task failed: {e}"))?
+}
+
+#[tauri::command]
+async fn save_managed_setlist(
+    setlist: SetlistManifest,
+    path: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    let wb = Arc::clone(&state.workbench);
+    let config_dir = state.config_dir.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let lib_cfg = wb.get_library_config();
+        let explicit = path
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(Path::new);
+        core_save_managed_setlist(&setlist, explicit, &lib_cfg, Some(&config_dir))
+    })
+    .await
+    .map_err(|e| format!("Save managed setlist task failed: {e}"))?
 }
 
 #[tauri::command]
@@ -671,7 +714,9 @@ pub fn run() {
             set_midi_learn_mode,
             inspect_song_folder,
             save_song_manifest,
+            generate_section_cues,
             save_setlist_file,
+            save_managed_setlist,
             load_setlist_file,
             get_library_config,
             save_library_config,

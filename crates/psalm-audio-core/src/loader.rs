@@ -304,6 +304,11 @@ pub fn save_song_manifest(dir: &Path, manifest: &SongManifest) -> Result<()> {
 
 pub fn save_setlist_manifest(path: &Path, setlist: &SetlistManifest) -> Result<()> {
     setlist.validate()?;
+    if let Some(parent) = path.parent() {
+        if !parent.as_os_str().is_empty() {
+            std::fs::create_dir_all(parent)?;
+        }
+    }
     let json = serde_json::to_string_pretty(setlist)
         .map_err(|e| AudioCoreError::Manifest(format!("Failed to serialize setlist: {e}")))?;
     std::fs::write(path, json)?;
@@ -457,7 +462,7 @@ pub fn decode_audio_to_stereo(path: &Path) -> Result<(Vec<f32>, u32)> {
     Ok((out, sample_rate))
 }
 
-fn resample_stereo_linear(input: &[f32], src_rate: u32, dst_rate: u32) -> Vec<f32> {
+pub fn resample_stereo_linear(input: &[f32], src_rate: u32, dst_rate: u32) -> Vec<f32> {
     if input.len() < 4 || src_rate == dst_rate {
         return input.to_vec();
     }

@@ -18,8 +18,9 @@ import { Tabs, TabItem, Aside } from '@astrojs/starlight/components';
 2. **Align Beat 1 & BPM on the Waveform**:
    - Automatic analysis estimates BPM, key, and downbeats.
    - Zoom up to **32x**, drag the **Bar 1 handle** or playhead cursor, use **Tap Tempo** (with half/double BPM scaling), or audition with live click alignment.
-3. **Annotate Song Sections**:
+3. **Annotate Song Sections & Generate IEM Voice Cues**:
    - Rapidly place, drag, extend, rename, and delete sections (`Intro`, `Verse`, `Chorus`, `Bridge`, `Outro`) with bar-accurate or decimal-second timing.
+   - Use the **IEM Section Cues** bar (`Generate IEM Cues`) to synthesize `section-cues.wav` directly from your section marks—complete with configurable lead-in (`At Mark`, `1 Beat`, `2 Beats`, `1 Bar`), optional pre-cue chime, and **Sync on Save**. Generated cues are flagged `"is_cues": true` and `"pitched": false`, routing strictly to your band IEM bus.
 4. **Publish to Library**: Saves a clean, self-contained folder with `manifest.json`.
 
 ---

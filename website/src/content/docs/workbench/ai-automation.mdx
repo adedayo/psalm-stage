@@ -18,13 +18,28 @@ When connected via MCP (e.g., in Claude Desktop, Antigravity, Cursor, or VS Code
 | `list_library_songs` | List songs indexed in the local Psalm Stage Library with optional text query and status filter. |
 | `match_library_song` | Fuzzy-match a song title/artist or YouTube URL against the local Library. |
 | `search_youtube_tracks` | Search YouTube via yt-dlp for a song and return ranked audio candidates for user confirmation. |
-| `plan_sunday_setlist` | Dry-run plan a Sunday setlist: match Library songs, search YouTube for missing unlinked songs, compute key shifts, and flag items needing confirmation before any downloads occur. |
+| `plan_sunday_setlist` | Dry-run plan a Sunday setlist: match Library songs, support Service Sections and standalone PadOnly/PercussionGroove slots, search YouTube for missing unlinked songs, compute key shifts, and flag items needing confirmation before any downloads occur. |
 | `ingest_song` | Download/import a single song from a YouTube URL or local audio file through the Workbench pipeline (uses default separation with stereo fallback unless specified; skips if cached). |
 | `ingest_songs_batch` | Sequentially ingest multiple confirmed YouTube URLs or local files into the Song Library. |
-| `create_or_update_setlist` | Either execute a full Sunday setlist build (when 'songs' is provided, ingesting confirmed missing songs and writing the setlist JSON) OR assemble a setlist directly from Library 'items' with song_dir. |
+| `create_or_update_setlist` | Either execute a full Sunday setlist build (when 'songs' is provided, ingesting confirmed missing songs and writing the setlist JSON) OR assemble/update a setlist directly from 'items' (SongBundle paths plus standalone PadOnly/PercussionGroove slots), supporting Service Sections, Tonic Pad Locks, Percussion Track Locks, Stem Mix overrides, and Setlist Mixer. |
+| `save_managed_setlist` | Save a complete SetlistManifest object into Managed Setlists (setlists_root) with collision-safe unique naming (or overwrite a specified path) and record it in recent_setlists. Useful for archiving a current setlist before starting a new one. |
 | `list_setlists` | List managed setlists stored in setlists_root and recent_setlists. |
-| `get_setlist` | Load and inspect a saved setlist JSON file by path. |
-| `get_ai_workflow_guide` | Return the canonical Psalm Stage Sunday setlist workflow instructions (SKILL.md). |
+| `get_setlist` | Load and inspect a saved setlist JSON file by explicit path or by managed setlist id/name. |
+| `get_song_manifest` | Inspect a Library song folder (manifest.json, sections, stems, provenance, estimated duration, and available audio files). |
+| `update_song_manifest` | Update editable metadata on an existing song bundle manifest.json (title, artist, bpm, time_signature, first_downbeat_sec, original_key, click_mode, sections, stem gain/mute/pitched overrides, or clear needs_review). |
+| `list_pad_presets` | List all Tonic Pad Player factory (14 built-in) and user presets, along with supported voice archetypes, registers, and tonalities. |
+| `save_user_pad_preset` | Create or update a multi-layer custom Tonic Pad Player user preset in pad-presets.json (1-4 layers, brightness, shimmer, pan, crossfade_sec). |
+| `delete_user_pad_preset` | Delete a custom user Tonic Pad Player preset by ID (built-in factory presets cannot be deleted). |
+| `list_percussion_styles` | List the 12 built-in Percussion Track styles with meter, steps_per_bar, bars_in_cycle, swing, and available instruments/modes/intensities. |
+| `list_percussion_kits` | List installed and generated WAV Percussion Sample Kits (default ~/Music/PsalmStage/PercussionKits). |
+| `generate_percussion_kit` | Generate a 36-sample (9 instruments x 4 variants) 16-bit 44.1 kHz studio WAV percussion kit on disk. |
+| `list_percussion_loops` | List saved custom dynamic percussion loops (default ~/Music/PsalmStage/PercussionLoops). |
+| `save_percussion_loop` | Save a custom dynamic percussion loop (1-4 bars) directly from pattern fields or by cloning a built-in style preset. |
+| `delete_percussion_loop` | Delete a saved custom dynamic percussion loop by ID. |
+| `export_percussion_loop_bundle` | Render and export a 9-stem toggleable WAV song bundle (kick.wav..bell.wav + manifest.json with pitched: false) into the Song Library ready for setlists. |
+| `generate_section_cues` | Generate an IEM-only section cue track (section-cues.wav) from a song's arrangement section marks (Intro, Verse 1, Chorus, Outro, etc.) and register it with is_cues=true. |
+| `get_stage_session` | Inspect persisted live stage session state (audio device, routing mode, active setlist/slot, Tonic Pad preset/layers/key, Percussion Track state, and mixer levels). |
+| `get_ai_workflow_guide` | Return the canonical Psalm Stage Sunday setlist, Tonic Pad, and Percussion Studio workflow instructions (SKILL.md). |
 {/* AUTO-SYNC:END mcp-tools-table */}
 
 <Aside type="caution">

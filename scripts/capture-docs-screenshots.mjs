@@ -103,10 +103,16 @@ async function main() {
     await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'networkidle' });
     await page.getByText('PSALM STAGE').first().waitFor({ state: 'visible', timeout: 15000 });
 
-    // 1. Live Stage
+    // 1. Live Stage (Rotary Dials, Independent Mixer, New Setlist drawer button)
     await saveShot(page, 'live-stage.png');
 
-    // 2. Tonic Pad Studio modal
+    // 2. MIDI Assign Mode on Live Stage (learn badges + inline unassign)
+    await page.getByRole('button', { name: 'MIDI Assign', exact: true }).click();
+    await page.getByText('MIDI Assign Mode:').first().waitFor({ state: 'visible', timeout: 5000 });
+    await saveShot(page, 'midi-assign-mode.png');
+    await page.getByRole('button', { name: /MIDI Assign: ON/i }).click();
+
+    // 3. Tonic Pad Studio modal
     const tonicBtn = page.getByTestId('open-tonic-studio-btn');
     await tonicBtn.click();
     const tonicModal = page.getByTestId('tonic-pad-studio-modal');
@@ -115,16 +121,22 @@ async function main() {
     await tonicModal.getByRole('button', { name: 'Done', exact: true }).click();
     await tonicModal.waitFor({ state: 'hidden', timeout: 5000 });
 
-    // 3. Setlist Studio
-    await page.getByRole('button', { name: 'Setlist Studio', exact: true }).click();
-    await saveShot(page, 'setlist-studio.png');
-
     // 4. Loop Studio
     await page.getByTestId('workspace-tab-loops').click();
     await saveShot(page, 'loop-studio.png');
 
-    // 5. Import Workbench
-    await page.getByRole('button', { name: 'Import Workbench', exact: true }).click();
+    // 5. Setlist Studio
+    await page.getByRole('button', { name: 'Setlist Studio', exact: true }).click();
+    await saveShot(page, 'setlist-studio.png');
+
+    // 6. Import Workbench (open first library song via Edit if available so Waveform + IEM Section Cues bar are showcased)
+    const editSongBtn = page.getByRole('button', { name: 'Edit', exact: true }).first();
+    if (await editSongBtn.isVisible().catch(() => false)) {
+      await editSongBtn.click();
+      await page.getByTestId('workbench-iem-cues-bar').waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+    } else {
+      await page.getByRole('button', { name: 'Import Workbench', exact: true }).click();
+    }
     await saveShot(page, 'import-workbench.png');
   } finally {
     await browser.close();
