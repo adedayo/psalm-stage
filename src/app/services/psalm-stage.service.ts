@@ -503,7 +503,7 @@ export class PsalmStageService implements OnDestroy {
     behavior: MidiTriggerBehavior;
   } | null>(null);
   readonly statusMessage = signal<string | null>(null);
-  readonly APP_VERSION = '0.1.0'; // x-release-please-version
+  readonly APP_VERSION = '0.2.0'; // x-release-please-version
   readonly availableUpdate = signal<AppUpdateInfo | null>(null);
   readonly isCheckingUpdate = signal<boolean>(false);
   readonly updateDismissed = signal<boolean>(false);

@@ -3,6 +3,13 @@
 All notable changes to **Psalm Stage** are documented in this file.
 Releases and version bumps are automated using [Release Please](https://github.com/googleapis/release-please) and [Conventional Commits](https://www.conventionalcommits.org/).
 
+## [0.2.0](https://github.com/adedayo/psalm-stage/compare/v0.1.0...v0.2.0) (2026-11-16)
+
+
+### Features
+
+* add Key/BPM rotary dials, inline MIDI unassign, IEM section cues, independent stage mixer, and expanded MCP tools ([33a5f24](https://github.com/adedayo/psalm-stage/commit/33a5f24df6bc0dac0ada904b18512978c7902a58))
+
 ## [0.1.0](https://github.com/adedayo/psalm-stage/releases/tag/v0.1.0) (2026-11-15)
 
 ### Features
